@@ -1,0 +1,13 @@
+{
+    "name": "finsight-workspace",
+    "version": "1.0.0",
+    "description": "FinSight Master Workspace",
+    "scripts": {
+        "build": "node scripts/health_check.js && ./update_installer.sh",
+        "check-health": "node scripts/health_check.js",
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev:backend": "cd backend && npx ts-node server.js",
+        "update-installer": "./update_installer.sh"
+    },
+    "dependencies": {}
+}

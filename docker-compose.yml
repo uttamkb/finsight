@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./finsight-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./finsight-backend/finsight.db:/app/finsight.db
+      - ./finsight-backend/src/main/resources/scripts/hf_cache:/app/scripts/hf_cache
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:libsql:/app/finsight.db
+      - PYTHON_EXECUTABLE=/app/scripts/venv/bin/python3
+      - OCR_SCRIPT_PATH=/app/scripts/trocr_processor.py
+      - HF_HOME=/app/scripts/hf_cache
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./finsight-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+    restart: unless-stopped

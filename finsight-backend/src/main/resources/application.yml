@@ -1,0 +1,73 @@
+spring:
+  datasource:
+    url: "jdbc:sqlite:finsight.db"
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      connection-test-query: SELECT 1
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: FinSightHikariPool
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update          # Use Hibernate to create schema if Flyway is blocked
+    show-sql: false               # Set to true for debug
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: false
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://127.0.0.1:3000
+  sync:
+    drive-folder-url: ${DRIVE_FOLDER_URL:}
+    service-account-json: ${SERVICE_ACCOUNT_JSON:}
+    gemini-api-key: ${GEMINI_API_KEY:}
+
+server:
+  port: 8080
+  tomcat:
+    basedir: ./tmp
+  error:
+    include-message: never          # Security: never expose exception messages to API consumers
+    include-stacktrace: never
+    include-binding-errors: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: FinSight Backend
+    description: Apartment Association Finance Management API
+    version: "@project.version@"
+  java:
+    version: "@java.version@"
+
+logging:
+  level:
+    com.finsight: INFO
+    org.flywaydb: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

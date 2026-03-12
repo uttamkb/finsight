@@ -1,0 +1,41 @@
+# IDE / System
+.DS_Store
+.vscode/
+
+# Build Artifacts
+target/
+dist/
+build/
+node_modules/
+.m2repo/
+.m2_repo/
+.mvn_tmp/
+:memory:*
+*.log
+finsight.db
+tmp/
+**/tmp/
+**/target/
+
+# Python / Environment
+venv/
+__pycache__/
+*.pyc
+.env
+hf_cache/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+libsql_data/
+
+# Credentials / Secrets
+service-account.json
+credentials.json
+*.p12
+*.jks
+
+# Backups
+*.zip
+*.bak
