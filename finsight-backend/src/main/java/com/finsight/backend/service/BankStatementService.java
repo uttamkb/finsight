@@ -44,7 +44,7 @@ public class BankStatementService {
         // 1. Invoke Gemini to parse the PDF and extract JSON data
         List<ParsedBankTransactionDto> parsedTxns = geminiStatementParserService.parsePdfStatement(file);
         
-        log.info("Gemini successfully extracted {} transactions from the PDF.", parsedTxns.size());
+        log.info("Parser successfully extracted {} transactions from the PDF.", parsedTxns.size());
 
         int savedCount = 0;
 
@@ -172,7 +172,9 @@ public class BankStatementService {
                 String rawDate = cols[dateIdx].trim();
                 LocalDate txDate = null;
                 for (DateTimeFormatter fmt : dateFormats) {
-                    try { txDate = LocalDate.parse(rawDate, fmt); break; } catch (DateTimeParseException ignored) {}
+                    try { txDate = LocalDate.parse(rawDate, fmt); break; } catch (DateTimeParseException e) {
+                        log.trace("Failed to parse CSV date {} with format {}: {}", rawDate, fmt, e.getMessage());
+                    }
                 }
                 if (txDate == null) {
                     log.warn("Row {}: Cannot parse date '{}', skipping.", rowNum, rawDate);
@@ -236,7 +238,7 @@ public class BankStatementService {
                 }
 
             } catch (Exception e) {
-                log.warn("Row {}: Failed to parse - {}. Cause: {}", rowNum, line, e.getMessage());
+                log.warn("Row {}: Failed to parse - {}. Cause: {}", rowNum, line, e.getMessage(), e);
             }
         }
 

@@ -170,6 +170,8 @@ export default function SystemInformationPage() {
                       <div className="flex justify-between"><span>file_name, vendor</span> <span>TEXT</span></div>
                       <div className="flex justify-between"><span>amount, ocr_conf</span> <span>REAL</span></div>
                       <div className="flex justify-between"><span>content_hash</span> <span className="text-emerald-500/70">TEXT (MD5)</span></div>
+                      <div className="flex justify-between"><span>google_drive_link</span> <span>TEXT (URL)</span></div>
+                      <div className="flex justify-between"><span>category</span> <span>TEXT</span></div>
                       <div className="flex justify-between"><span>status</span> <span>TEXT (PENDING|PROCESSED..)</span></div>
                     </div>
                   </div>
@@ -184,6 +186,7 @@ export default function SystemInformationPage() {
                       <div className="flex justify-between"><span>tx_date</span> <span>DATE NOT NULL</span></div>
                       <div className="flex justify-between"><span>description</span> <span>TEXT NOT NULL</span></div>
                       <div className="flex justify-between"><span>amount</span> <span>REAL NOT NULL</span></div>
+                      <div className="flex justify-between"><span>reconciled</span> <span>INTEGER (0/1)</span></div>
                       <div className="flex justify-between"><span>category_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
                       <div className="flex justify-between"><span>receipt_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
                     </div>
@@ -196,7 +199,46 @@ export default function SystemInformationPage() {
                       <div className="flex justify-between"><span>transaction_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
                       <div className="flex justify-between"><span>receipt_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
                       <div className="flex justify-between"><span>issue_type</span> <span>TEXT (MISMATCH)</span></div>
+                      <div className="flex justify-between"><span>similarity_score</span> <span>REAL</span></div>
+                      <div className="flex justify-between"><span>match_type</span> <span>TEXT (EXACT\|FUZZY)</span></div>
                       <div className="flex justify-between"><span>resolved</span> <span>INTEGER (0/1)</span></div>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
+                      <span>vendors</span>
+                      <span className="text-xs font-sans text-muted-foreground bg-background px-2 py-0.5 rounded border">Analytics</span>
+                    </div>
+                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
+                      <div className="flex justify-between"><span>name</span> <span>TEXT UNIQUE</span></div>
+                      <div className="flex justify-between"><span>total_payments</span> <span>INTEGER</span></div>
+                      <div className="flex justify-between"><span>total_spent</span> <span>REAL</span></div>
+                      <div className="flex justify-between"><span>last_payment_date</span> <span className="text-emerald-500/70">TIMESTAMP</span></div>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden border-rose-500/30">
+                    <div className="bg-rose-500/10 p-3 border-b border-rose-500/30 font-mono font-bold text-sm flex items-center justify-between">
+                      <span className="text-rose-600">forensic_anomalies</span>
+                      <span className="text-xs font-sans text-rose-500 bg-background px-2 py-0.5 rounded border border-rose-500/30">Risk Engine</span>
+                    </div>
+                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
+                      <div className="flex justify-between"><span>description</span> <span>TEXT</span></div>
+                      <div className="flex justify-between"><span>reason</span> <span className="text-rose-500/70">TEXT (Logic)</span></div>
+                      <div className="flex justify-between"><span>amount</span> <span>REAL</span></div>
+                      <div className="flex justify-between"><span>tx_date</span> <span>TEXT</span></div>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm">categories</div>
+                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
+                      <div className="flex justify-between"><span>name</span> <span>TEXT UNIQUE</span></div>
+                      <div className="flex justify-between"><span>type</span> <span>TEXT (INCOME\|EXPENSE)</span></div>
                     </div>
                   </div>
 

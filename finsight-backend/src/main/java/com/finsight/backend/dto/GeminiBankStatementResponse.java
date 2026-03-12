@@ -9,6 +9,7 @@ public class GeminiBankStatementResponse {
     private List<ParsedBankTransactionDto> transactions;
     private String error;
     private String trace;
+    private List<String> debug;
 
     public List<ParsedBankTransactionDto> getTransactions() {
         return transactions;
@@ -32,5 +33,13 @@ public class GeminiBankStatementResponse {
 
     public void setTrace(String trace) {
         this.trace = trace;
+    }
+
+    public List<String> getDebug() {
+        return debug;
+    }
+
+    public void setDebug(List<String> debug) {
+        this.debug = debug;
     }
 }

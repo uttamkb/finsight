@@ -22,16 +22,21 @@ else
     mvn clean compile -DskipTests -Dmaven.repo.local=$(pwd)/.m2_repo -Djava.io.tmpdir=/tmp
 fi
 
-# Setup Python Venv for TrOCR if not exists
+# Setup Python Venv for PaddleOCR if not exists
 SCRIPTS_DIR="src/main/resources/scripts"
 if [ ! -d "$SCRIPTS_DIR/venv" ]; then
-    echo ">>> Setting up TrOCR Python Virtual Environment..."
+    echo ">>> Setting up PaddleOCR Python Virtual Environment..."
     mkdir -p "$SCRIPTS_DIR"
     python3 -m venv "$SCRIPTS_DIR/venv"
     source "$SCRIPTS_DIR/venv/bin/activate"
-    pip install torch transformers Pillow opencv-python-headless
+    # Core vision + OCR stack (PaddleOCR replaces TrOCR/transformers)
+    pip install --upgrade pip
+    pip install paddlepaddle paddleocr Pillow opencv-python-headless pdfplumber pdf2image
 else
-    echo ">>> TrOCR Python Venv already exists."
+    echo ">>> PaddleOCR Python Venv already exists."
+    # Ensure paddleocr is installed even if venv existed from TrOCR era
+    source "$SCRIPTS_DIR/venv/bin/activate"
+    python3 -c "import paddleocr" 2>/dev/null || pip install paddlepaddle paddleocr
 fi
 cd ..
 

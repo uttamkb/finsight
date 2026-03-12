@@ -4,6 +4,7 @@ import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from PIL import Image
 import json
+import traceback
 
 # Set level to avoid spamming logs
 import logging
@@ -102,7 +103,7 @@ def process_ocr(image_path):
         }))
         
     except Exception as e:
-        print(json.dumps({"error": str(e), "status": "failed"}))
+        print(json.dumps({"error": str(e), "trace": traceback.format_exc(), "status": "failed"}))
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -61,14 +61,15 @@ public class OcrServiceImpl implements OcrService {
 
             if ("MODE_HYBRID".equals(mode)) {
                 try {
-                    if (confidence < 0.6) {
-                        log.info("Local OCR confidence low ({}), falling back to Gemini for {}", confidence, fileName);
-                        result = extractWithGeminiFromLocalFile(tempFile, fileName, config.getGeminiApiKey());
+                    if (confidence < 0.75) {
+                        log.info("Local OCR confidence low ({}), falling back to Gemini for {} with OCR text assistance", confidence, fileName);
+                        String rawText = (String) localResult.getOrDefault("raw_text", "");
+                        result = extractWithGeminiFromLocalFile(tempFile, fileName, config.getGeminiApiKey(), rawText);
                     } else {
                         result = localResult;
                     }
                 } catch (Exception e) {
-                    log.warn("Gemini fallback failed for {}, using local OCR result: {}", fileName, e.getMessage());
+                    log.warn("Gemini fallback failed for {}, using local OCR result: {}", fileName, e.getMessage(), e);
                     result = localResult;
                     result.put("error", "AI Fallback failed: " + e.getMessage());
                 }
@@ -102,9 +103,9 @@ public class OcrServiceImpl implements OcrService {
         return result;
     }
 
-    private Map<String, Object> extractLocallyFromTempFile(File tempFile, String fileName) throws Exception {
+    Map<String, Object> extractLocallyFromTempFile(File tempFile, String fileName) throws Exception {
         Map<String, Object> result = new HashMap<>();
-        String scriptPath = System.getenv("OCR_SCRIPT_PATH") != null ? System.getenv("OCR_SCRIPT_PATH") : "src/main/resources/scripts/trocr_processor.py";
+        String scriptPath = System.getenv("OCR_SCRIPT_PATH") != null ? System.getenv("OCR_SCRIPT_PATH") : "src/main/resources/scripts/paddle_ocr_processor.py";
         String pythonPath = System.getenv("PYTHON_EXECUTABLE") != null ? System.getenv("PYTHON_EXECUTABLE") : "src/main/resources/scripts/venv/bin/python3";
 
         ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, tempFile.getAbsolutePath());
@@ -118,7 +119,9 @@ public class OcrServiceImpl implements OcrService {
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         StringBuilder output = new StringBuilder();
         String line;
-        while ((line = reader.readLine()) != null) output.append(line);
+        while ((line = reader.readLine()) != null) {
+            output.append(line).append("\n");
+        }
 
         boolean finished = process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
         if (!finished) {
@@ -140,7 +143,7 @@ public class OcrServiceImpl implements OcrService {
         
         try {
             // Robust JSON Extraction for mixed output (warnings + JSON)
-            int startIndex = output.lastIndexOf("{");
+            int startIndex = output.indexOf("{");
             int endIndex = output.lastIndexOf("}");
             
             if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
@@ -158,7 +161,7 @@ public class OcrServiceImpl implements OcrService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Mixed output parsing failed, falling back to regex: {}", e.getMessage());
+            log.warn("Mixed output parsing failed, falling back to regex: {} Output snippet: {}", e.getMessage(), output.substring(0, Math.min(output.length(), 100)), e);
         }
 
         result.put("raw_text", rawText);
@@ -169,17 +172,17 @@ public class OcrServiceImpl implements OcrService {
         return result;
     }
 
-    private Map<String, Object> extractWithGemini(InputStream content, String fileName, String apiKey) throws Exception {
+    Map<String, Object> extractWithGemini(InputStream content, String fileName, String apiKey) throws Exception {
         File tempFile = File.createTempFile("ocr_gemini_", "_" + fileName);
         Files.copy(content, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         try {
-            return extractWithGeminiFromLocalFile(tempFile, fileName, apiKey);
+            return extractWithGeminiFromLocalFile(tempFile, fileName, apiKey, null);
         } finally {
             tempFile.delete();
         }
     }
 
-    private Map<String, Object> extractWithGeminiFromLocalFile(File file, String fileName, String apiKey) throws Exception {
+    Map<String, Object> extractWithGeminiFromLocalFile(File file, String fileName, String apiKey, String localOcrText) throws Exception {
         if (apiKey == null || apiKey.trim().isEmpty() || apiKey.equals("your_gemini_api_key_here")) {
             throw new IllegalStateException("Gemini API key is missing.");
         }
@@ -192,8 +195,13 @@ public class OcrServiceImpl implements OcrService {
         }
 
         String prompt = "Extract receipt data: vendor, amount (numeric), date (YYYY-MM-DD). Return ONLY JSON: {\"vendor\":\"...\",\"amount\":123.45,\"date\":\"...\"}";
+        if (localOcrText != null && !localOcrText.trim().isEmpty()) {
+            prompt += "\n\nLocal OCR detected the following text (may be partial/noisy):\n" + localOcrText;
+            prompt += "\n\nUse this text to assist your high-accuracy extraction from the image.";
+        }
+        
         String requestBody = String.format("{\"contents\":[{\"parts\":[{\"text\":\"%s\"},{\"inline_data\":{\"mime_type\":\"%s\",\"data\":\"%s\"}}]}]}", 
-                prompt, mimeType, base64Data);
+                prompt.replace("\"", "\\\"").replace("\n", "\\n"), mimeType, base64Data);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GEMINI_API_URL + apiKey))
@@ -220,26 +228,34 @@ public class OcrServiceImpl implements OcrService {
             if (m1.find()) {
                 try {
                     return LocalDate.parse(m1.group(), DateTimeFormatter.ofPattern(m1.group().contains("/") ? "yyyy/MM/dd" : "yyyy-MM-dd")).toString();
-                } catch (DateTimeParseException ignored) {}
+                } catch (DateTimeParseException e) {
+                    log.trace("Failed to parse date {} with pattern 1: {}", m1.group(), e.getMessage());
+                }
             }
             Matcher m2 = Pattern.compile("\\b(\\d{1,2})[-/](\\d{1,2})[-/](\\d{4})\\b").matcher(text);
             if (m2.find()) {
                 try {
                     String sep = m2.group().contains("/") ? "/" : "-";
                     return LocalDate.parse(m2.group(), DateTimeFormatter.ofPattern("dd" + sep + "MM" + sep + "yyyy")).toString();
-                } catch (DateTimeParseException ignored) {}
+                } catch (DateTimeParseException e) {
+                    log.trace("Failed to parse date {} with pattern 2: {}", m2.group(), e.getMessage());
+                }
             }
             Matcher m3 = Pattern.compile("\\b(\\d{1,2})[\\s-]([A-Za-z]{3})[\\s-](\\d{4})\\b").matcher(text);
             if (m3.find()) {
                 try {
                     return LocalDate.parse(m3.group().replace(" ", "-"), DateTimeFormatter.ofPattern("dd-MMM-yyyy", java.util.Locale.ENGLISH)).toString();
-                } catch (DateTimeParseException ignored) {}
+                } catch (DateTimeParseException e) {
+                    log.trace("Failed to parse date {} with pattern 3: {}", m3.group(), e.getMessage());
+                }
             }
         }
         Matcher mFile = Pattern.compile("(\\d{4})[^\\d]?(\\d{2})[^\\d]?(\\d{2})?").matcher(fileName);
         if (mFile.find() && mFile.group(1) != null && mFile.group(2) != null) {
             String day = mFile.group(3) != null ? mFile.group(3) : "01";
-            try { return LocalDate.parse(mFile.group(1) + "-" + mFile.group(2) + "-" + day).toString(); } catch (Exception ignored) {}
+            try { return LocalDate.parse(mFile.group(1) + "-" + mFile.group(2) + "-" + day).toString(); } catch (Exception e) {
+                log.trace("Failed to parse date from filename {}: {}", fileName, e.getMessage());
+            }
         }
         return LocalDate.now().toString();
     }
@@ -265,7 +281,9 @@ public class OcrServiceImpl implements OcrService {
                 String valStr = m.group(1).replace(",", "").replace(" ", "");
                 double val = Double.parseDouble(valStr);
                 if (val > maxAmount && val < 10000000) maxAmount = val;
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.trace("Failed to parse currency amount {}: {}", m.group(1), e.getMessage());
+            }
         }
         if (maxAmount == 0.0) {
             Matcher mSimple = Pattern.compile("\\b\\d{2,7}\\b").matcher(text);
@@ -273,7 +291,9 @@ public class OcrServiceImpl implements OcrService {
                 try {
                     double val = Double.parseDouble(mSimple.group());
                     if (val > maxAmount && val < 1000000) maxAmount = val;
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.trace("Failed to parse numeric amount {}: {}", mSimple.group(), e.getMessage());
+                }
             }
         }
         return maxAmount;

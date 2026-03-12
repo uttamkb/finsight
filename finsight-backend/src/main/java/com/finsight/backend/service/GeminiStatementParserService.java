@@ -138,7 +138,7 @@ public class GeminiStatementParserService {
         StringBuilder output = new StringBuilder();
         String line;
         while ((line = reader.readLine()) != null) {
-            output.append(line);
+            output.append(line).append("\n");
         }
 
         boolean finished = process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS);
@@ -162,12 +162,15 @@ public class GeminiStatementParserService {
                 if (response.getError() != null && !response.getError().isEmpty()) {
                     throw new RuntimeException("Python script error: " + response.getError());
                 }
+                if (response.getDebug() != null) {
+                    response.getDebug().forEach(msg -> log.info("[Python Debug] {}", msg));
+                }
                 return response.getTransactions() != null ? response.getTransactions() : new ArrayList<>();
             } else {
                 return new ArrayList<>();
             }
         } catch (Exception e) {
-            log.warn("Failed to parse output from local python script: {}", e.getMessage());
+            log.warn("Failed to parse output from local python script: {}", e.getMessage(), e);
             throw new RuntimeException("JSON parsing error from local script.", e);
         }
     }
