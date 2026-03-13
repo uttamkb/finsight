@@ -10,6 +10,7 @@ public class GeminiBankStatementResponse {
     private String error;
     private String trace;
     private List<String> debug;
+    private double confidenceScore;
 
     public List<ParsedBankTransactionDto> getTransactions() {
         return transactions;
@@ -17,6 +18,14 @@ public class GeminiBankStatementResponse {
 
     public void setTransactions(List<ParsedBankTransactionDto> transactions) {
         this.transactions = transactions;
+    }
+
+    public double getConfidenceScore() {
+        return confidenceScore;
+    }
+
+    public void setConfidenceScore(double confidenceScore) {
+        this.confidenceScore = confidenceScore;
     }
 
     public String getError() {

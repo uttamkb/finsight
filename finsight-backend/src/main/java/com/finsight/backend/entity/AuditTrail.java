@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_audit_tenant", columnList = "tenant_id"),
     @Index(name = "idx_audit_resolved", columnList = "resolved")
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class AuditTrail {
 
     @Id
@@ -57,7 +58,9 @@ public class AuditTrail {
         BANK_NO_RECEIPT,     // Bank transaction has no matching receipt
         RECEIPT_NO_BANK,     // Receipt has no matching bank transaction
         AMOUNT_MISMATCH,     // Amount doesn't match between bank and receipt
-        DATE_MISMATCH        // Date is outside acceptable range
+        DATE_MISMATCH,       // Date is outside acceptable range
+        SUGGESTED_MATCH,     // Recommended match waiting for user approval
+        UNMATCHED            // No match found
     }
 
     // Getters and setters

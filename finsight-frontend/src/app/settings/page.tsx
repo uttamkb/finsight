@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings as SettingsIcon, Save, Key, Globe, Layout, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, Save, Key, Globe, Layout, Check, AlertCircle, Loader2, Database, Download, Upload, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useToast } from "@/components/toast-provider";
+import { useRef } from "react";
 import { API_BASE_URL } from "@/lib/constants";
 
 interface AppConfig {
@@ -31,7 +32,11 @@ export default function SettingsPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/settings`)
@@ -83,6 +88,86 @@ export default function SettingsPage() {
       toast("Connection error. Is the backend running?", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/backup/export`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        a.download = `finsight_backup_${timestamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast("Backup exported successfully!");
+      } else {
+        toast("Failed to export backup.", "error");
+      }
+    } catch (error) {
+      toast("Export failed. Backend might be unreachable.", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("Are you sure? This will OVERWRITE your current database with the backup data. This action cannot be undone.")) {
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      const response = await fetch(`${API_BASE_URL}/backup/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(backupData),
+      });
+
+      if (response.ok) {
+        toast("Backup restored successfully! Refreshing settings...");
+        window.location.reload();
+      } else {
+        toast("Failed to restore backup.", "error");
+      }
+    } catch (error) {
+        console.error(error);
+      toast("Import failed. Ensure the file is a valid FinSight backup.", "error");
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleReset = async () => {
+    if (!confirm("CRITICAL WARNING: This will PERMANENTLY DELETE all data (Receipts, Transactions, Vendors). Your settings will also be reset. Continue?")) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/backup/reset`, { method: "POST" });
+      if (response.ok) {
+        toast("Database reset successfully. Starting fresh.");
+        window.location.reload();
+      } else {
+        toast("Failed to reset database.", "error");
+      }
+    } catch (error) {
+      toast("Reset failed. Backend might be unreachable.", "error");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -234,6 +319,61 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Required to programmatically access your Google Drive folder. Ensure the Service Account Email is shared as an "Editor" on the Drive Folder.
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Data Management */}
+        <div className="rounded-xl border bg-card p-6 shadow-sm border-primary/10">
+          <div className="flex items-center gap-2 mb-6 border-b border-primary/10 pb-4">
+            <Database className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Data Management</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Export</h3>
+              <p className="text-xs text-muted-foreground mb-2">Save all your data to a portable JSON file for backup.</p>
+              <button
+                onClick={handleExport}
+                disabled={isExporting}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-background border border-primary/20 text-foreground rounded-lg hover:bg-primary/5 transition-all text-sm font-medium"
+              >
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Download className="h-4 w-4 text-primary" />}
+                {isExporting ? "Exporting..." : "Download Backup"}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 border-l border-r border-primary/5 px-6">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Import</h3>
+              <p className="text-xs text-muted-foreground mb-2">Restore data from a previously exported JSON file.</p>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImport}
+                className="hidden"
+                accept=".json"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-background border border-primary/20 text-foreground rounded-lg hover:bg-primary/5 transition-all text-sm font-medium"
+              >
+                {isImporting ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Upload className="h-4 w-4 text-primary" />}
+                {isImporting ? "Importing..." : "Select & Restore"}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-medium text-red-500 uppercase tracking-wider">Destructive</h3>
+              <p className="text-xs text-muted-foreground mb-2">Permanently wipe all data and start from scratch.</p>
+              <button
+                onClick={handleReset}
+                disabled={isResetting}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg hover:bg-red-500/20 transition-all text-sm font-medium"
+              >
+                {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {isResetting ? "Resetting..." : "Reset Database"}
+              </button>
             </div>
           </div>
         </div>

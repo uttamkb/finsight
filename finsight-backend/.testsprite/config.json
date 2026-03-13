@@ -1,0 +1,6 @@
+{
+  "backendUrl": "http://localhost:8080",
+  "projectPath": "/Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend",
+  "type": "backend",
+  "testScope": "codebase"
+}

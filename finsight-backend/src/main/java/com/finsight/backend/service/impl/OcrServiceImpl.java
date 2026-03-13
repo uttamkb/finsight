@@ -140,9 +140,9 @@ public class OcrServiceImpl implements OcrService {
     private Map<String, Object> parseOcrOutput(String output, String fileName) {
         Map<String, Object> result = new HashMap<>();
         String rawText = output;
+        double confidence = 0.4; // Default low confidence
         
         try {
-            // Robust JSON Extraction for mixed output (warnings + JSON)
             int startIndex = output.indexOf("{");
             int endIndex = output.lastIndexOf("}");
             
@@ -152,23 +152,26 @@ public class OcrServiceImpl implements OcrService {
                 
                 if (node.has("text")) {
                     rawText = node.get("text").asText();
-                } else if (node.has("vendor")) {
-                    result.put("vendor", node.get("vendor").asText());
-                    result.put("amount", node.has("amount") ? node.get("amount").asDouble() : 0.0);
-                    result.put("date", node.has("date") ? node.get("date").asText() : extractDateFromText("", fileName));
-                    result.put("confidence", 1.0);
+                } 
+                
+                if (node.has("vendor") || node.has("amount")) {
+                    result.put("vendor", node.has("vendor") ? node.get("vendor").asText() : extractVendorFromText(rawText, fileName));
+                    result.put("amount", node.has("amount") ? node.get("amount").asDouble() : extractAmountFromText(rawText));
+                    result.put("date", node.has("date") ? node.get("date").asText() : extractDateFromText(rawText, fileName));
+                    result.put("confidence", node.has("confidence") ? node.get("confidence").asDouble() : 0.5);
+                    result.put("raw_text", rawText);
                     return result;
                 }
             }
         } catch (Exception e) {
-            log.warn("Mixed output parsing failed, falling back to regex: {} Output snippet: {}", e.getMessage(), output.substring(0, Math.min(output.length(), 100)), e);
+            log.warn("Mixed output parsing failed, falling back to regex extraction");
         }
 
         result.put("raw_text", rawText);
         result.put("vendor", extractVendorFromText(rawText, fileName));
         result.put("amount", extractAmountFromText(rawText));
         result.put("date", extractDateFromText(rawText, fileName));
-        result.put("confidence", 0.4); 
+        result.put("confidence", confidence); 
         return result;
     }
 

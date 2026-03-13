@@ -35,4 +35,11 @@ public class ReceiptController {
             @PathVariable Long id) {
         return ResponseEntity.ok(receiptService.getReceiptById(id));
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Receipt> updateReceipt(
+            @PathVariable Long id,
+            @RequestBody Receipt receipt) {
+        return ResponseEntity.ok(receiptService.updateReceipt(id, receipt));
+    }
 }

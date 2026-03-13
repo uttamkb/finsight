@@ -1,5 +1,6 @@
 package com.finsight.backend.service;
 
+import com.finsight.backend.dto.BankTransactionDto;
 import com.finsight.backend.dto.ParsedBankTransactionDto;
 import com.finsight.backend.entity.BankTransaction;
 import com.finsight.backend.entity.Category;
@@ -7,6 +8,8 @@ import com.finsight.backend.repository.BankTransactionRepository;
 import com.finsight.backend.repository.CategoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +40,12 @@ public class BankStatementService {
         this.categoryRepository = categoryRepository;
     }
 
+    @Transactional(readOnly = true)
+    public Page<BankTransactionDto> getPagedTransactions(String tenantId, Pageable pageable) {
+        return bankTransactionRepository.findByTenantIdWithCategory(tenantId, pageable)
+                .map(BankTransactionDto::from);
+    }
+
     @Transactional
     public int processPdfStatement(MultipartFile file) throws Exception {
         log.info("Processing Bank Statement PDF: {}", file.getOriginalFilename());
@@ -59,8 +68,16 @@ public class BankStatementService {
 
             // Create Entity
             BankTransaction txn = new BankTransaction();
-            txn.setTxDate(dto.getTxDate());
+            
+            // Normalize Date
+            LocalDate txDate = parseDateRobustly(dto.getTxDate());
+            if (txDate == null) {
+                log.warn("Skipping row: Cannot parse date '{}'", dto.getTxDate());
+                continue;
+            }
+            txn.setTxDate(txDate);
             txn.setDescription(dto.getDescription());
+            txn.setVendor(dto.getVendor() != null ? dto.getVendor() : "Unknown"); // Set vendor from DTO
             txn.setAmount(dto.getAmount());
             
             // Map String Type to Enum
@@ -119,36 +136,57 @@ public class BankStatementService {
         log.info("Processing Bank Statement CSV: {}", file.getOriginalFilename());
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-        String headerLine = null;
+        List<String> allLines = new ArrayList<>();
         String line;
-        // Skip blank lines / comment lines until we find the header
-        while ((line = reader.readLine()) != null) {
-            if (!line.trim().isEmpty() && !line.trim().startsWith("#")) {
-                headerLine = line;
-                break;
+        while ((line = reader.readLine()) != null && allLines.size() < 100) {
+            if (!line.trim().isEmpty()) allLines.add(line);
+        }
+        if (allLines.isEmpty()) throw new IllegalArgumentException("CSV file is empty.");
+
+        // Identify the header line by scanning the first ~20 lines
+        int headerLineIndex = -1;
+        int maxScore = -1;
+        String detectedDelimiter = ",";
+        int dateIdx = -1, descIdx = -1, amountIdx = -1, debitIdx = -1, creditIdx = -1;
+
+        for (int i = 0; i < Math.min(20, allLines.size()); i++) {
+            String currentLine = allLines.get(i);
+            String currentDelimiter = currentLine.contains(";") ? ";" : 
+                                      currentLine.contains("\t") ? "\t" : ",";
+            String[] parts = splitCsv(currentLine, currentDelimiter);
+            
+            int score = 0;
+            int tempDate = -1, tempDesc = -1, tempAmt = -1, tempDeb = -1, tempCre = -1;
+            
+            for (int j = 0; j < parts.length; j++) {
+                String h = parts[j].trim().toLowerCase().replaceAll("[^a-z ]", "");
+                if (h.matches("date|txdate|transaction date|value date|posting date")) { tempDate = j; score += 20; }
+                else if (h.matches("description|narration|particulars|remarks|details|chq details|naration")) { tempDesc = j; score += 20; }
+                else if (h.matches("amount|txn amount|transaction amount")) { tempAmt = j; score += 15; }
+                else if (h.matches("debit|withdrawal|withdrawal amt|dr")) { tempDeb = j; score += 10; }
+                else if (h.matches("credit|deposit|deposit amt|cr")) { tempCre = j; score += 10; }
+                else if (h.matches("balance|closing balance")) { score += 5; }
+            }
+
+            if (score > maxScore && score >= 40) { // Require at least Date + Desc or similar
+                maxScore = score;
+                headerLineIndex = i;
+                detectedDelimiter = currentDelimiter;
+                dateIdx = tempDate;
+                descIdx = tempDesc;
+                amountIdx = tempAmt;
+                debitIdx = tempDeb;
+                creditIdx = tempCre;
             }
         }
-        if (headerLine == null) throw new IllegalArgumentException("CSV file is empty.");
 
-        // Detect delimiter
-        String delimiter = headerLine.contains(";") ? ";" : ",";
-        String[] headers = splitCsv(headerLine, delimiter);
-
-        // Map header names to column indices (case-insensitive)
-        int dateIdx = -1, descIdx = -1, amountIdx = -1, debitIdx = -1, creditIdx = -1;
-        for (int i = 0; i < headers.length; i++) {
-            String h = headers[i].trim().toLowerCase().replaceAll("[^a-z ]", "");
-            if (h.matches("date|txdate|transaction date|value date|posting date")) dateIdx = i;
-            else if (h.matches("description|narration|particulars|remarks|details|cheque details")) descIdx = i;
-            else if (h.matches("amount|transaction amount")) amountIdx = i;
-            else if (h.matches("debit|withdrawal|withdrawal amt")) debitIdx = i;
-            else if (h.matches("credit|deposit|deposit amt")) creditIdx = i;
-        }
-
-        if (dateIdx < 0 || descIdx < 0 || (amountIdx < 0 && debitIdx < 0 && creditIdx < 0)) {
+        if (headerLineIndex == -1) {
             throw new IllegalArgumentException(
-                "CSV missing required columns. Need: Date, Description/Narration, Amount/Debit/Credit.");
+                "Unable to identify CSV headers. Ensure column names like 'Date', 'Description', and 'Amount' are present.");
         }
+
+        log.info("Detected header at line {} with delimiter '{}'. Score: {}", headerLineIndex, detectedDelimiter, maxScore);
+
 
         List<DateTimeFormatter> dateFormats = List.of(
             DateTimeFormatter.ofPattern("dd/MM/yyyy"),
@@ -156,94 +194,163 @@ public class BankStatementService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
             DateTimeFormatter.ofPattern("MM/dd/yyyy"),
             DateTimeFormatter.ofPattern("dd MMM yyyy"),
-            DateTimeFormatter.ofPattern("d MMM yyyy")
+            DateTimeFormatter.ofPattern("d MMM yyyy"),
+            DateTimeFormatter.ofPattern("dd/MM/yy"),
+            DateTimeFormatter.ofPattern("d/M/yyyy"),
+            DateTimeFormatter.ofPattern("d-M-yyyy"),
+            DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+            DateTimeFormatter.ofPattern("MMM dd, yyyy")
         );
 
         int savedCount = 0;
-        int rowNum = 1;
-        while ((line = reader.readLine()) != null) {
-            rowNum++;
-            if (line.trim().isEmpty()) continue;
-            String[] cols = splitCsv(line, delimiter);
-            if (cols.length <= Math.max(dateIdx, descIdx)) continue;
-
-            try {
-                // Parse date
-                String rawDate = cols[dateIdx].trim();
-                LocalDate txDate = null;
-                for (DateTimeFormatter fmt : dateFormats) {
-                    try { txDate = LocalDate.parse(rawDate, fmt); break; } catch (DateTimeParseException e) {
-                        log.trace("Failed to parse CSV date {} with format {}: {}", rawDate, fmt, e.getMessage());
-                    }
-                }
-                if (txDate == null) {
-                    log.warn("Row {}: Cannot parse date '{}', skipping.", rowNum, rawDate);
-                    continue;
-                }
-
-                String description = cols[descIdx].trim();
-                if (description.isEmpty()) continue;
-
-                // Resolve amount and type
-                BigDecimal amount = null;
-                BankTransaction.TransactionType type = null;
-
-                if (amountIdx >= 0 && amountIdx < cols.length) {
-                    String raw = cols[amountIdx].trim().replaceAll("[,₹$£€\\s]", "");
-                    if (!raw.isEmpty()) {
-                        amount = new BigDecimal(raw).abs();
-                        type = amount.compareTo(BigDecimal.ZERO) < 0
-                            ? BankTransaction.TransactionType.CREDIT
-                            : BankTransaction.TransactionType.DEBIT;
-                        amount = amount.abs();
-                    }
-                } else {
-                    BigDecimal debit = BigDecimal.ZERO, credit = BigDecimal.ZERO;
-                    if (debitIdx >= 0 && debitIdx < cols.length) {
-                        String raw = cols[debitIdx].trim().replaceAll("[,₹$£€\\s]", "");
-                        if (!raw.isEmpty()) debit = new BigDecimal(raw);
-                    }
-                    if (creditIdx >= 0 && creditIdx < cols.length) {
-                        String raw = cols[creditIdx].trim().replaceAll("[,₹$£€\\s]", "");
-                        if (!raw.isEmpty()) credit = new BigDecimal(raw);
-                    }
-                    if (debit.compareTo(BigDecimal.ZERO) > 0) {
-                        amount = debit; type = BankTransaction.TransactionType.DEBIT;
-                    } else if (credit.compareTo(BigDecimal.ZERO) > 0) {
-                        amount = credit; type = BankTransaction.TransactionType.CREDIT;
-                    }
-                }
-
-                if (amount == null || type == null) {
-                    log.warn("Row {}: No valid amount found, skipping.", rowNum);
-                    continue;
-                }
-
-                BankTransaction txn = new BankTransaction();
-                txn.setTxDate(txDate);
-                txn.setDescription(description);
-                txn.setAmount(amount);
-                txn.setType(type);
-
-                String rawRef = txDate + "|" + amount + "|" + description;
-                txn.setReferenceNumber(Integer.toHexString(rawRef.hashCode()));
-
-                boolean exists = bankTransactionRepository.existsByReferenceNumberAndTenantId(
-                    txn.getReferenceNumber(), txn.getTenantId());
-                if (!exists) {
-                    bankTransactionRepository.save(txn);
-                    savedCount++;
-                } else {
-                    log.debug("Skipped duplicate CSV row: {}", description);
-                }
-
-            } catch (Exception e) {
-                log.warn("Row {}: Failed to parse - {}. Cause: {}", rowNum, line, e.getMessage(), e);
+        int rowIdx = 0;
+        
+        // 1. Process lines cached for header detection
+        for (int i = headerLineIndex + 1; i < allLines.size(); i++) {
+            if (processRow(allLines.get(i), rowIdx++, detectedDelimiter, dateIdx, descIdx, amountIdx, debitIdx, creditIdx)) {
+                savedCount++;
             }
         }
-
+        
+        // 2. Process remaining lines in stream
+        while ((line = reader.readLine()) != null) {
+            if (processRow(line, rowIdx++, detectedDelimiter, dateIdx, descIdx, amountIdx, debitIdx, creditIdx)) {
+                savedCount++;
+            }
+        }
+        
         log.info("CSV processing complete. Saved {} new transactions.", savedCount);
         return savedCount;
+    }
+
+    private boolean processRow(String line, int rowNum, String delimiter, int dateIdx, int descIdx, int amountIdx, int debitIdx, int creditIdx) {
+        if (line.trim().isEmpty()) return false;
+        String[] cols = splitCsv(line, delimiter);
+        if (cols.length <= Math.max(dateIdx, descIdx)) return false;
+
+        try {
+            // Parse date
+            String rawDate = cols[dateIdx].trim();
+            LocalDate txDate = parseDateRobustly(rawDate);
+            
+            if (txDate == null) {
+                log.warn("Row {}: Cannot parse date '{}', skipping.", rowNum, rawDate);
+                return false;
+            }
+
+            String description = cols[descIdx].trim();
+            if (description.isEmpty()) return false;
+
+            // Resolve amount and type
+            BigDecimal amount = null;
+            BankTransaction.TransactionType type = null;
+
+            if (amountIdx >= 0 && amountIdx < cols.length) {
+                String raw = cols[amountIdx].trim().replaceAll("[^0-9\\.-]", "");
+                if (!raw.isEmpty()) {
+                    try {
+                        BigDecimal val = new BigDecimal(raw);
+                        amount = val.abs();
+                        type = val.compareTo(BigDecimal.ZERO) < 0
+                            ? BankTransaction.TransactionType.DEBIT
+                            : BankTransaction.TransactionType.CREDIT;
+                    } catch (Exception e) {
+                        log.warn("Row {}: Invalid amount format '{}'", rowNum, raw);
+                    }
+                }
+            } else {
+                BigDecimal debit = BigDecimal.ZERO, credit = BigDecimal.ZERO;
+                if (debitIdx >= 0 && debitIdx < cols.length) {
+                    String raw = cols[debitIdx].trim().replaceAll("[^0-9\\.-]", "");
+                    if (!raw.isEmpty()) debit = new BigDecimal(raw).abs();
+                }
+                if (creditIdx >= 0 && creditIdx < cols.length) {
+                    String raw = cols[creditIdx].trim().replaceAll("[^0-9\\.-]", "");
+                    if (!raw.isEmpty()) credit = new BigDecimal(raw).abs();
+                }
+                
+                if (credit.compareTo(BigDecimal.ZERO) > 0) {
+                    amount = credit; type = BankTransaction.TransactionType.CREDIT;
+                } else if (debit.compareTo(BigDecimal.ZERO) > 0) {
+                    amount = debit; type = BankTransaction.TransactionType.DEBIT;
+                }
+            }
+
+            if (amount == null || type == null) {
+                return false;
+            }
+
+            // Vendor Detection Logic (Step 6)
+            // For CSV, the description is often the vendor/payee
+            // We can add simple NLP or keyword matching here later
+
+            BankTransaction txn = new BankTransaction();
+            txn.setTxDate(txDate);
+            txn.setDescription(description);
+            
+            // Simple CSV Vendor Detection (Step 6)
+            String vendor = description.split("[/\\*\\-]")[0].trim();
+            if (vendor.length() < 3) vendor = description;
+            txn.setVendor(vendor);
+
+            txn.setAmount(amount);
+            txn.setType(type);
+
+            String rawRef = txDate + "|" + amount + "|" + description;
+            txn.setReferenceNumber(Integer.toHexString(rawRef.hashCode()));
+
+            boolean exists = bankTransactionRepository.existsByReferenceNumberAndTenantId(
+                txn.getReferenceNumber(), txn.getTenantId());
+            if (!exists) {
+                bankTransactionRepository.save(txn);
+                return true;
+            } else {
+                log.debug("Skipped duplicate CSV row: {}", description);
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.warn("Row {}: Failed to parse - {}. Cause: {}", rowNum, line, e.getMessage());
+            return false;
+        }
+    }
+
+    public LocalDate parseDateRobustly(String rawDate) {
+        if (rawDate == null || rawDate.trim().isEmpty()) return null;
+        
+        List<DateTimeFormatter> dateFormats = List.of(
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            DateTimeFormatter.ofPattern("MM/dd/yyyy"),
+            DateTimeFormatter.ofPattern("dd MMM yyyy"),
+            DateTimeFormatter.ofPattern("d MMM yyyy"),
+            DateTimeFormatter.ofPattern("MMM dd, yyyy"),
+            DateTimeFormatter.ofPattern("dd/MM/yy"),
+            DateTimeFormatter.ofPattern("d/M/yyyy"),
+            DateTimeFormatter.ofPattern("d-M-yyyy"),
+            DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+            DateTimeFormatter.ofPattern("d-MMM-yyyy", java.util.Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("d MMM, yyyy", java.util.Locale.ENGLISH)
+        );
+
+        String cleanDate = rawDate.trim().replaceAll("\\s+", " ");
+        for (DateTimeFormatter fmt : dateFormats) {
+            try {
+                return LocalDate.parse(cleanDate, fmt);
+            } catch (Exception e) {
+                // Try next
+            }
+        }
+        
+        // Manual fallback for very strange formats or timestamps
+        try {
+            if (cleanDate.contains("T")) {
+                return LocalDate.parse(cleanDate.split("T")[0]);
+            }
+        } catch (Exception e) {}
+
+        return null;
     }
 
     /** Splits a CSV line respecting quoted fields. */

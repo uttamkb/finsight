@@ -16,6 +16,11 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
     
     // For pagination and filtering
     Page<BankTransaction> findByTenantId(String tenantId, Pageable pageable);
+
+    // Eagerly loads category and receipt (LEFT JOIN FETCH) to prevent N+1 and LazyInitializationException when building DTOs.
+    @Query(value = "SELECT b FROM BankTransaction b LEFT JOIN FETCH b.category LEFT JOIN FETCH b.receipt WHERE b.tenantId = :tenantId",
+           countQuery = "SELECT COUNT(b) FROM BankTransaction b WHERE b.tenantId = :tenantId")
+    Page<BankTransaction> findByTenantIdWithCategory(@Param("tenantId") String tenantId, Pageable pageable);
     
     // For deduplication
     boolean existsByReferenceNumberAndTenantId(String referenceNumber, String tenantId);

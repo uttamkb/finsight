@@ -1,5 +1,6 @@
 package com.finsight.backend.controller;
 
+import com.finsight.backend.dto.BankTransactionDto;
 import com.finsight.backend.entity.BankTransaction;
 import com.finsight.backend.repository.BankTransactionRepository;
 import com.finsight.backend.service.BankStatementService;
@@ -51,13 +52,10 @@ public class BankStatementController {
                 savedCount = bankStatementService.processPdfStatement(file);
             }
 
-            // Auto-trigger reconciliation right after a successful upload
-            int reconciledCount = reconciliationService.runReconciliation();
-
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Bank statement processed successfully.");
             response.put("transactionsSaved", savedCount);
-            response.put("autoReconciled", reconciledCount);
+            response.put("manualReconcileRequired", true);
 
             return ResponseEntity.ok(response);
 
@@ -72,12 +70,12 @@ public class BankStatementController {
     }
 
     @GetMapping("/transactions")
-    public ResponseEntity<Page<BankTransaction>> getTransactions(
+    public ResponseEntity<Page<BankTransactionDto>> getTransactions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "15") int size) {
-        
+
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("txDate").descending());
-        Page<BankTransaction> transactions = bankTransactionRepository.findByTenantId("local_tenant", pageRequest);
+        Page<BankTransactionDto> transactions = bankStatementService.getPagedTransactions("local_tenant", pageRequest);
         return ResponseEntity.ok(transactions);
     }
 

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,13 +25,13 @@ public class ReconciliationService {
     private static final String TENANT_ID = "local_tenant";
 
     // Scoring weights — must sum to 100
-    private static final double AMOUNT_WEIGHT = 50.0;
-    private static final double DATE_WEIGHT   = 30.0;
-    private static final double NAME_WEIGHT   = 20.0;
+    private static final double AMOUNT_WEIGHT = 60.0;
+    private static final double NAME_WEIGHT   = 30.0;
+    private static final double DATE_WEIGHT   = 10.0;
 
-    // ≥80 = auto-link, 50–79 = flag for human review, <50 = no match
-    private static final double AUTO_LINK_THRESHOLD  = 80.0;
-    private static final double FUZZY_AUDIT_THRESHOLD = 50.0;
+    // ≥70 = auto-link, 40–69 = flag for human review (suggested match), <40 = no match
+    private static final double AUTO_LINK_THRESHOLD  = 70.0;
+    private static final double SUGGESTED_MATCH_THRESHOLD = 40.0;
 
     private final BankTransactionRepository bankTransactionRepository;
     private final ReceiptRepository receiptRepository;
@@ -93,7 +94,7 @@ public class ReconciliationService {
 
             if (bestScore >= AUTO_LINK_THRESHOLD && bestMatch != null) {
                 // Auto-link the pair
-                String matchType = bestScore >= 95.0 ? "EXACT" : "FUZZY";
+                String matchType = bestScore >= 99.0 ? "EXACT" : "AUTO_MATCH";
                 bankTxn.setReceipt(bestMatch);
                 bankTxn.setReconciled(true);
                 bankTransactionRepository.save(bankTxn);
@@ -102,18 +103,18 @@ public class ReconciliationService {
                 log.debug("Auto-Matched [{}] '{}' <-> '{}' (score: {})",
                         matchType, bankTxn.getDescription(), bestMatch.getVendor(), String.format("%.1f", bestScore));
 
-            } else if (bestScore >= FUZZY_AUDIT_THRESHOLD && bestMatch != null) {
+            } else if (bestScore >= SUGGESTED_MATCH_THRESHOLD && bestMatch != null) {
                 // Partial match — needs human review
                 createAuditEntry(bankTxn, bestMatch,
-                        AuditTrail.IssueType.AMOUNT_MISMATCH,
-                        String.format("Partial match (score: %.0f/100). Review required. Bank: '%s' | Receipt: '%s'",
+                        AuditTrail.IssueType.SUGGESTED_MATCH,
+                        String.format("Suggested match (score: %.0f/100). Review required. Bank: '%s' | Receipt: '%s'",
                                 bestScore, bankTxn.getDescription(), bestMatch.getVendor()),
-                        bestScore, "FUZZY");
+                        bestScore, "SUGGESTED_MATCH");
             } else {
                 // No viable match found
                 createAuditEntry(bankTxn, null,
-                        AuditTrail.IssueType.BANK_NO_RECEIPT,
-                        "No matching receipt found for this bank transaction.",
+                        AuditTrail.IssueType.UNMATCHED,
+                        "No matching receipt found for this bank transaction (score < 40).",
                         bestScore, "NONE");
             }
         }
@@ -136,42 +137,73 @@ public class ReconciliationService {
 
     /**
      * Computes a 100-point similarity score between a bank debit and a receipt.
-     * Amount:  up to 50 pts (exact=50, within 0.5%=40, within 5%=25, else=0)
-     * Date:    up to 30 pts (0 days=30, 1 day=24, 2 days=18, ≤5 days=9, else=0)
-     * Vendor:  up to 20 pts (normalized Levenshtein similarity × 20)
+     * Amount:  60 pts (exact match)
+     * Vendor:  30 pts (similarity > 70%)
+     * Date:    10 pts (within 3 days)
      */
     private double computeScore(BankTransaction bankTxn, Receipt receipt) {
         double score = 0.0;
 
-        // --- Amount ---
+        // --- 1. Amount Match (60 pts) ---
         BigDecimal bankAmt    = bankTxn.getAmount();
         BigDecimal receiptAmt = BigDecimal.valueOf(receipt.getAmount());
-        double amtDiff = bankAmt.subtract(receiptAmt).abs().doubleValue();
-        double avgAmt  = (bankAmt.doubleValue() + receiptAmt.doubleValue()) / 2.0;
-        double amtPct  = avgAmt > 0 ? (amtDiff / avgAmt) : 1.0;
+        if (bankAmt.compareTo(receiptAmt) == 0) {
+            score += AMOUNT_WEIGHT;
+        }
 
-        if      (amtPct == 0.0)   score += AMOUNT_WEIGHT;
-        else if (amtPct <= 0.005) score += AMOUNT_WEIGHT * 0.8;
-        else if (amtPct <= 0.05)  score += AMOUNT_WEIGHT * 0.5;
-        // else: 0 pts
-
-        // --- Date ---
+        // --- 2. Date Proximity (10 pts) ---
         LocalDate bankDate    = bankTxn.getTxDate();
         LocalDate receiptDate = receipt.getDate();
         long daysDiff = Math.abs(bankDate.toEpochDay() - receiptDate.toEpochDay());
 
-        if      (daysDiff == 0) score += DATE_WEIGHT;
-        else if (daysDiff <= 1) score += DATE_WEIGHT * 0.8;
-        else if (daysDiff <= 2) score += DATE_WEIGHT * 0.6;
-        else if (daysDiff <= 5) score += DATE_WEIGHT * 0.3;
-        // else: 0 pts
+        if (daysDiff <= 3) {
+            score += DATE_WEIGHT;
+        }
 
-        // --- Vendor name similarity ---
-        String bankDesc     = normalize(bankTxn.getDescription());
-        String receiptVendor = normalize(receipt.getVendor());
-        score += NAME_WEIGHT * levenshteinSimilarity(bankDesc, receiptVendor);
+        // --- 3. Vendor Similarity (30 pts) ---
+        String bankVendor = bankTxn.getVendor() != null ? bankTxn.getVendor() : bankTxn.getDescription();
+        double similarity = calculateVendorSimilarity(bankVendor, receipt.getVendor());
+        if (similarity > 0.70) {
+            score += NAME_WEIGHT;
+        }
 
         return score;
+    }
+
+    /** Calculates fuzzy vendor similarity favoring substring overlap to handle "Amazon" vs "Amazon Pay India". */
+    private double calculateVendorSimilarity(String bankVendor, String receiptVendor) {
+        String a = normalize(bankVendor);
+        String b = normalize(receiptVendor);
+
+        if (a.isEmpty() && b.isEmpty()) return 1.0;
+        if (a.isEmpty() || b.isEmpty()) return 0.0;
+
+        // Exact
+        if (a.equals(b)) return 1.0;
+
+        // Substring / Overlap based on words
+        String[] tokensA = a.split(" ");
+        String[] tokensB = b.split(" ");
+        int matchCount = 0;
+        for (String tokenA : tokensA) {
+            if (tokenA.isEmpty()) continue;
+            for (String tokenB : tokensB) {
+                if (tokenB.isEmpty()) continue;
+                if (tokenA.equals(tokenB) || levenshteinSimilarity(tokenA, tokenB) > 0.8) {
+                    matchCount++;
+                    break;
+                }
+            }
+        }
+
+        int minTokens = Math.min(tokensA.length, tokensB.length);
+        if (minTokens == 0) return 0.0;
+        double overlapSim = (double) Math.min(matchCount, minTokens) / minTokens;
+        
+        // Also check overall character levenshtein
+        double levSim = levenshteinSimilarity(a, b);
+
+        return Math.max(overlapSim, levSim);
     }
 
     /** Normalized Levenshtein similarity in [0.0, 1.0]. */
@@ -219,5 +251,46 @@ public class ReconciliationService {
         audit.setSimilarityScore(score);
         audit.setMatchType(matchType);
         auditTrailRepository.save(audit);
+    }
+
+    /**
+     * Manually links a bank transaction to a receipt, bypassing similarity thresholds.
+     * Also marks any associated audit trail entries as resolved.
+     */
+    @Transactional
+    public void manuallyLink(Long transactionId, Long receiptId) {
+        log.info("Attempting manual link: BankTxn[{}] <-> Receipt[{}]", transactionId, receiptId);
+        
+        BankTransaction txn = bankTransactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Bank transaction not found"));
+        
+        Receipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new IllegalArgumentException("Receipt not found"));
+
+        if (Boolean.TRUE.equals(txn.getReconciled())) {
+            throw new IllegalStateException("Transaction is already reconciled");
+        }
+
+        // Link entities
+        txn.setReceipt(receipt);
+        txn.setReconciled(true);
+        bankTransactionRepository.save(txn);
+
+        // Resolve associated audit trails
+        List<AuditTrail> pendingAudits = auditTrailRepository.findByTenantId("local_tenant").stream()
+                .filter(a -> !Boolean.TRUE.equals(a.getResolved()))
+                .filter(a -> (a.getTransaction() != null && a.getTransaction().getId().equals(transactionId)) ||
+                             (a.getReceipt() != null && a.getReceipt().getId().equals(receiptId)))
+                .collect(Collectors.toList());
+
+        for (AuditTrail audit : pendingAudits) {
+            audit.setResolved(true);
+            audit.setResolvedAt(LocalDateTime.now());
+            audit.setResolvedBy("user_manual_link");
+            auditTrailRepository.save(audit);
+        }
+        
+        log.info("Successfully manually linked Txn[{}] and Receipt[{}] and resolved {} audit records.", 
+                transactionId, receiptId, pendingAudits.size());
     }
 }

@@ -35,7 +35,10 @@ class OcrServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        MockitoAnnotations.openMocks(this);
+        mockConfig = new AppConfig();
         when(appConfigService.getConfig()).thenReturn(mockConfig);
+        ocrService = spy(new OcrServiceImpl(appConfigService));
     }
 
     private Map<String, Object> localResult(double confidence, String rawText) {

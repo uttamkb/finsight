@@ -1,5 +1,6 @@
 package com.finsight.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_bank_tx_tenant", columnList = "tenant_id"),
     @Index(name = "idx_bank_tx_date", columnList = "tx_date")
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class BankTransaction {
 
     @Id
@@ -25,6 +27,9 @@ public class BankTransaction {
     @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "vendor")
+    private String vendor;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
     private TransactionType type;
@@ -34,6 +39,7 @@ public class BankTransaction {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Category category;
 
     @Column(name = "reconciled", nullable = false)
@@ -41,6 +47,7 @@ public class BankTransaction {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "receipt_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Receipt receipt;
 
     @Column(name = "reference_number")
@@ -70,6 +77,8 @@ public class BankTransaction {
     public void setReconciled(Boolean reconciled) { this.reconciled = reconciled; }
     public Receipt getReceipt() { return receipt; }
     public void setReceipt(Receipt receipt) { this.receipt = receipt; }
+    public String getVendor() { return vendor; }
+    public void setVendor(String vendor) { this.vendor = vendor; }
     public String getReferenceNumber() { return referenceNumber; }
     public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
     public LocalDateTime getCreatedAt() { return createdAt; }

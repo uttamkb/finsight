@@ -19,6 +19,7 @@ import logging
 # Suppress PaddleOCR / PaddlePaddle verbose output
 logging.disable(logging.WARNING)
 os.environ["GLOG_minloglevel"] = "3"
+os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"  # Skip slow network connectivity check
 
 import cv2
 import numpy as np
@@ -108,57 +109,60 @@ AMOUNT_PATTERNS = [
 ]
 
 # TOTAL keywords for proximity matching
-TOTAL_KEYWORDS = ["total", "amount", "payable", "due", "grand", "net"]
+TOTAL_KEYWORDS = ["total", "amount", "payable", "due", "grand", "net", "balance"]
 
 def extract_amount(parsed_lines: list, image_height: int) -> float:
     """
     Refined Spatial Rule Engine:
-    1. Filter lines in the BOTTOM 30% of the image.
+    1. Filter lines in the BOTTOM 50% of the image (Totals are rarely at the top, except for "Balance Due" summaries).
     2. Within those lines, look for amount patterns.
-    3. Prioritize amounts near 'TOTAL' keywords.
+    3. Prioritize amounts near 'TOTAL' or 'BALANCE' keywords.
+    4. Guard against stray digits being prefixed (e.g. '7' from line above).
     """
     candidates = []
     
-    # Zone: Bottom 30%
-    bottom_threshold = image_height * 0.70
+    # Zone: Bottom 60% (more lenient for receipts with summaries at top)
+    zone_threshold = image_height * 0.40
     
     for i, line in enumerate(parsed_lines):
         bbox, content = line[0], line[1]
         text, conf = content[0], content[1]
         
-        # Calculate vertical center
         y_center = (bbox[0][1] + bbox[2][1]) / 2 if bbox is not None else 0
         
-        if y_center < bottom_threshold:
-            continue
-            
         # Check patterns
         for pattern in AMOUNT_PATTERNS:
             m = re.search(pattern, text, re.IGNORECASE)
             if m:
                 try:
-                    val = float(m.group(1).replace(",", ""))
+                    raw_val = m.group(1).replace(",", "")
+                    # Sanity check: Total shouldn't start with a stray '7' if it's unlikely
+                    # (This is hard to automate, but we can check if there's a space or symbol)
+                    val = float(raw_val)
                     if not (1.0 <= val <= 9_999_999): continue
                     
-                    # Proximity score: is "Total" in the same line or previous line?
-                    proximity_bonus = 0
+                    # Proximity score breakdown:
+                    score = 0
+                    
+                    # 1. Keyword Bonus
                     if any(kw in text.lower() for kw in TOTAL_KEYWORDS):
-                        proximity_bonus = 50
+                        score += 5000
                     elif i > 0:
                         prev_text = parsed_lines[i-1][1][0].lower()
                         if any(kw in prev_text for kw in TOTAL_KEYWORDS):
-                            proximity_bonus = 30
-                            
+                            score += 3000
+                    
+                    # 2. Position Bonus (Lower is usually better for totals)
+                    position_score = (y_center / image_height) * 1000
+                    
                     candidates.append({
                         "val": val, 
-                        "y": y_center, 
-                        "score": val + (proximity_bonus * 1000) # Bias heavily toward total-keyworded amounts
+                        "score": score + position_score
                     })
                 except:
                     pass
                     
     if not candidates:
-        # Fallback to global search if bottom zone is empty (safety)
         global_text = "\n".join([l[1][0] for l in parsed_lines])
         for pattern in AMOUNT_PATTERNS:
             for m in re.finditer(pattern, global_text, re.IGNORECASE):
@@ -168,6 +172,7 @@ def extract_amount(parsed_lines: list, image_height: int) -> float:
                 except: pass
                     
     if candidates:
+        # Sort by total calculated score
         candidates.sort(key=lambda x: x["score"], reverse=True)
         return candidates[0]["val"]
         
@@ -195,34 +200,46 @@ def extract_date(text: str) -> str:
 #  DAY 3: LAYOUT-BASED VENDOR EXTRACTION
 # ─────────────────────────────────────────────
 
+# Keywords that strongly indicate an address (NOT a vendor name)
+ADDRESS_KEYWORDS = ["road", "floor", "plaza", "colony", "apartment", "no.", "plot", "street", "building", "nagar", "corner", "extn", "layout"]
+
 def extract_vendor_from_layout(ocr_lines: list, image_height: int) -> str:
     """
-    Receipts almost always have the store/vendor name in the top 20% of the image.
+    Receipts almost always have the store/vendor name in the top 25% of the image.
     Among those header lines, the tallest text (largest bounding box height) is the name.
     """
     header_lines = []
     for line in ocr_lines:
-        # PaddleOCR bbox: [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]
         bbox = line[0]
         text = line[1][0].strip()
         conf = line[1][1]
 
-        if not text or conf < 0.5:
+        if not text or conf < 0.5 or len(text) < 3:
             continue
 
         y_center = (bbox[0][1] + bbox[2][1]) / 2
-        if y_center < image_height * 0.20:
-            # Skip lines that look like dates or amounts in the vendor zone
+        
+        # Headers usually live in the top 25%
+        if y_center < image_height * 0.25:
+            # 1. Skip lines that are clearly NOT vendors (dates, totals, or long address-like lines)
             if re.search(r'date|total|amount|rs\.|inr|₹|\d{4}', text, re.IGNORECASE):
                 continue
+            
+            # 2. Filter out common address patterns (e.g. "No. 5/A", "80 Feet Road")
+            if any(kw in text.lower() for kw in ADDRESS_KEYWORDS):
+                continue
+            
+            # 3. Heuristic: Vendor names are usually 3-5 words max. Longer tends to be a full address line.
+            if len(text.split()) > 6:
+                continue
+
             text_height = abs(bbox[2][1] - bbox[0][1])
             header_lines.append((text, text_height))
 
     if header_lines:
-        # Largest text height = most prominent heading = vendor name
+        # Sort by prominence (text height) then by vertical position (higher is better)
         header_lines.sort(key=lambda x: x[1], reverse=True)
         candidate = header_lines[0][0]
-        # Must contain at least one letter to be a valid vendor name
         if re.search(r'[a-zA-Z]', candidate):
             return candidate
 
@@ -299,10 +316,14 @@ def process_ocr(image_path: str):
         processed_rgb = processed.convert("RGB")
         processed_h = processed_rgb.size[1]
 
-        # Day 1: PaddleOCR PP-OCRv4 with angle classifier
+        # Day 1: PaddleOCR v3/PaddleX API — use new parameter names
         from paddleocr import PaddleOCR
-        # Bare minimum initialization to avoid 'Unknown argument' errors on this environment
-        ocr_engine = PaddleOCR(lang="en")
+        ocr_engine = PaddleOCR(
+            lang="en",
+            use_textline_orientation=True,   # replaces deprecated use_angle_cls
+            text_det_limit_side_len=960,     # replaces deprecated det_limit_side_len
+        )
+        # Note: show_log and use_gpu have been removed in PaddleOCR v3+
 
         result = ocr_engine.ocr(np.array(processed_rgb))
 

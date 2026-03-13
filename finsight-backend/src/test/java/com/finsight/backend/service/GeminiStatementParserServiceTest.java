@@ -45,7 +45,7 @@ class GeminiStatementParserServiceTest {
         ParsedBankTransactionDto dto = new ParsedBankTransactionDto();
         dto.setDescription(desc);
         dto.setAmount(BigDecimal.valueOf(amount));
-        dto.setTxDate(LocalDate.now());
+        dto.setTxDate("2024-01-01");
         dto.setType("DEBIT");
         return dto;
     }

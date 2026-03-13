@@ -9,4 +9,5 @@ public interface ReceiptService {
     Page<Receipt> getAllReceipts(String tenantId, String search, Pageable pageable);
     Receipt getReceiptById(Long id);
     Receipt saveReceipt(Receipt receipt);
+    Receipt updateReceipt(Long id, Receipt receipt);
 }

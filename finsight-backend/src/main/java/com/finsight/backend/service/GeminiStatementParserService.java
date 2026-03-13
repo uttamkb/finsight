@@ -39,26 +39,28 @@ public class GeminiStatementParserService {
         You are a highly accurate financial data extraction assistant.
         I am providing you with a bank statement in PDF format.
         Please extract all transaction line items from this document.
-        For each transaction, extract the following:
-        - txDate: The date of the transaction (format as YYYY-MM-DD)
-        - description: The description or payee of the transaction
-        - type: 'DEBIT' if it's a withdrawal/payment, 'CREDIT' if it's a deposit/income
-        - amount: The monetary amount (as a positive number, no currency symbols)
-        - category: Briefly categorize this transaction (e.g., 'Groceries', 'Utilities', 'Maintenance', 'Salary', 'Transfer', or 'Other Expense')
-
+        
+        CRITICAL INSTRUCTIONS:
+        1. Extract EVERY transaction listed.
+        2. Format txDate exactly as YYYY-MM-DD if possible, but keep the original string if unsure.
+        3. Determine type: 'DEBIT' for withdrawals/payments (money out), 'CREDIT' for deposits/income (money in).
+        4. amount MUST be a positive number.
+        5. description should be the core narration/payee.
+        
         Return the data strictly as a JSON object matching this schema:
         {
           "transactions": [
             {
-              "txDate": "YYYY-MM-DD",
+              "txDate": "string",
               "description": "string",
+              "vendor": "string",
               "type": "DEBIT|CREDIT",
-              "amount": 123.45,
+              "amount": number,
               "category": "string"
             }
           ]
         }
-        Do not include any other text or markdown formatting in your response.
+        Do not include any other text or markdown formatting.
         """;
 
     public GeminiStatementParserService(AppConfigService appConfigService) {
@@ -91,29 +93,33 @@ public class GeminiStatementParserService {
 
             file.transferTo(tempFile);
 
-            List<ParsedBankTransactionDto> localResult = extractLocally(tempFile);
+            GeminiBankStatementResponse localResponse = extractLocally(tempFile);
+            List<ParsedBankTransactionDto> localResult = localResponse.getTransactions() != null ? localResponse.getTransactions() : new ArrayList<>();
+            double confidence = localResponse.getConfidenceScore();
+
+            log.info("Local extraction confidence: {}%", confidence);
 
             if ("MODE_LOW_COST".equals(ocrMode)) {
-                log.info("Low Cost Mode: Using local extraction results ({} txns).", localResult.size());
+                log.info("Low Cost Mode: Using local results regardless of confidence.");
                 return localResult;
             }
 
             // Mode is HYBRID
-            if (localResult.isEmpty()) {
-                log.info("Hybrid Mode: Local extraction yielded 0 transactions. Falling back to Gemini...");
+            if (localResult.isEmpty() || confidence < 70) {
+                log.info("Confidence ({}%) < 70% or 0 transactions. Falling back to Gemini AI Parser...", confidence);
                 return extractWithGemini(file, config.getGeminiApiKey());
             } else {
-                log.info("Hybrid Mode: Local extraction successful ({} txns).", localResult.size());
+                log.info("Hybrid Mode: Local extraction successful with {}% confidence ({} txns).", confidence, localResult.size());
                 return localResult;
             }
 
         } catch (Exception e) {
             log.error("Error during statement extraction: {}", e.getMessage(), e);
             if ("MODE_HYBRID".equals(ocrMode)) {
-                log.info("Hybrid Mode: Local extraction threw error. Falling back to Gemini...");
+                log.info("Hybrid Mode: Local extraction failed. Falling back to Gemini...");
                 return extractWithGemini(file, config.getGeminiApiKey());
             }
-            throw e; // Bubble up if Low Cost fails entirely
+            throw e;
         } finally {
             if (tempFile != null && tempFile.exists()) {
                 tempFile.delete();
@@ -121,11 +127,10 @@ public class GeminiStatementParserService {
         }
     }
 
-    List<ParsedBankTransactionDto> extractLocally(File tempFile) throws Exception {
+    GeminiBankStatementResponse extractLocally(File tempFile) throws Exception {
         String scriptPath = System.getenv("STATEMENT_SCRIPT_PATH") != null ? System.getenv("STATEMENT_SCRIPT_PATH") : "src/main/resources/scripts/statement_processor.py";
         String pythonPath = System.getenv("PYTHON_EXECUTABLE") != null ? System.getenv("PYTHON_EXECUTABLE") : "src/main/resources/scripts/venv/bin/python3";
 
-        // Check if script exists, if not return empty list
         if (!new File(scriptPath).exists()) {
             throw new RuntimeException("Local parsing script missing: " + scriptPath);
         }
@@ -141,7 +146,7 @@ public class GeminiStatementParserService {
             output.append(line).append("\n");
         }
 
-        boolean finished = process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS);
+        boolean finished = process.waitFor(120, java.util.concurrent.TimeUnit.SECONDS);
         if (!finished) {
             process.destroyForcibly();
             throw new RuntimeException("Local Statement Parsing completely timed out.");
@@ -152,7 +157,6 @@ public class GeminiStatementParserService {
         }
 
         String jsonOutput = output.toString();
-        // The Python script outputs JSON. We parse it.
         try {
             int startIndex = jsonOutput.indexOf("{");
             int endIndex = jsonOutput.lastIndexOf("}");
@@ -165,9 +169,9 @@ public class GeminiStatementParserService {
                 if (response.getDebug() != null) {
                     response.getDebug().forEach(msg -> log.info("[Python Debug] {}", msg));
                 }
-                return response.getTransactions() != null ? response.getTransactions() : new ArrayList<>();
+                return response;
             } else {
-                return new ArrayList<>();
+                return new GeminiBankStatementResponse();
             }
         } catch (Exception e) {
             log.warn("Failed to parse output from local python script: {}", e.getMessage(), e);
@@ -222,7 +226,7 @@ public class GeminiStatementParserService {
                 .path("content").path("parts").get(0)
                 .path("text").asText();
 
-        String cleanText = jsonTextContent.replaceAll("```json|```", "").trim();
+        String cleanText = jsonTextContent.replaceAll("(?s).*?\\{", "{").replaceAll("(?s)\\}.*?\\z", "}");
 
         GeminiBankStatementResponse result = objectMapper.readValue(cleanText, GeminiBankStatementResponse.class);
         return result.getTransactions() != null ? result.getTransactions() : new ArrayList<>();
