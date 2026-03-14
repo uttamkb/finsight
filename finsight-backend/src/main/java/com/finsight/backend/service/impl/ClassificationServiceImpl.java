@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 public class ClassificationServiceImpl implements ClassificationService {
 
     private static final Logger log = LoggerFactory.getLogger(ClassificationServiceImpl.class);
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
 
     private final AppConfigService appConfigService;
     private final CategoryRepository categoryRepository;
@@ -83,8 +83,9 @@ public class ClassificationServiceImpl implements ClassificationService {
                 """, escapeJson(prompt));
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GEMINI_API_URL + apiKey))
+                .uri(URI.create(GEMINI_API_URL))
                 .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 

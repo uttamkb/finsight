@@ -21,6 +21,15 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
     @Query(value = "SELECT b FROM BankTransaction b LEFT JOIN FETCH b.category LEFT JOIN FETCH b.receipt WHERE b.tenantId = :tenantId",
            countQuery = "SELECT COUNT(b) FROM BankTransaction b WHERE b.tenantId = :tenantId")
     Page<BankTransaction> findByTenantIdWithCategory(@Param("tenantId") String tenantId, Pageable pageable);
+
+    // C4 — reconciled filter: used by getTransactions endpoint when filter param is provided
+    @Query(value = "SELECT b FROM BankTransaction b LEFT JOIN FETCH b.category LEFT JOIN FETCH b.receipt " +
+                   "WHERE b.tenantId = :tenantId AND b.reconciled = :reconciled",
+           countQuery = "SELECT COUNT(b) FROM BankTransaction b WHERE b.tenantId = :tenantId AND b.reconciled = :reconciled")
+    Page<BankTransaction> findByTenantIdWithCategoryAndReconciled(
+        @Param("tenantId") String tenantId,
+        @Param("reconciled") boolean reconciled,
+        Pageable pageable);
     
     // For deduplication
     boolean existsByReferenceNumberAndTenantId(String referenceNumber, String tenantId);

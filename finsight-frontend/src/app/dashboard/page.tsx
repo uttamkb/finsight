@@ -33,7 +33,7 @@ import {
 } from "recharts";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 
 interface DashboardStats {
@@ -84,14 +84,14 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const [statsRes, historyRes, projRes, recentRes, settingsRes, auditStatsRes, ocrStatsRes, catRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/dashboard/stats`),
-        fetch(`${API_BASE_URL}/dashboard/history`),
-        fetch(`${API_BASE_URL}/dashboard/projections`),
-        fetch(`${API_BASE_URL}/statements/transactions?page=0&size=5`),
-        fetch(`${API_BASE_URL}/settings`),
-        fetch(`${API_BASE_URL}/reconciliation/audit-trail/statistics`),
-        fetch(`${API_BASE_URL}/insights/ocr-stats`),
-        fetch(`${API_BASE_URL}/insights/categories/spend`)
+        apiFetch("/dashboard/stats"),
+        apiFetch("/dashboard/history"),
+        apiFetch("/dashboard/projections"),
+        apiFetch("/statements/transactions?page=0&size=5"),
+        apiFetch("/settings"),
+        apiFetch("/reconciliation/audit-trail/statistics"),
+        apiFetch("/insights/ocr-stats"),
+        apiFetch("/insights/categories/spend")
       ]);
 
       if (statsRes.ok) setStats(await statsRes.json());

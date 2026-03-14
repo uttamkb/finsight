@@ -5,6 +5,8 @@ import com.finsight.backend.repository.AppConfigRepository;
 import com.finsight.backend.service.AppConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class AppConfigServiceImpl implements AppConfigService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "settings", key = "'app_config'")
     public AppConfig getConfig() {
         AppConfig config = repository.findByTenantId(TENANT_ID).orElseGet(() -> {
             log.info("No config found for tenant '{}', creating default.", TENANT_ID);
@@ -59,6 +62,7 @@ public class AppConfigServiceImpl implements AppConfigService {
     }
 
     @Override
+    @CacheEvict(value = "settings", key = "'app_config'")
     public AppConfig saveConfig(AppConfig incoming) {
         AppConfig existing = repository.findByTenantId(TENANT_ID).orElse(new AppConfig());
         existing.setApartmentName(incoming.getApartmentName());

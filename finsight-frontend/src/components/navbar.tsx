@@ -6,7 +6,7 @@ import { ThemeToggle } from "./theme-toggle"
 import { useEffect, useState } from "react"
 import { ShieldAlert } from "lucide-react"
 import { usePathname } from "next/navigation"
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -15,7 +15,7 @@ export function Navbar() {
 
   useEffect(() => {
     // Fetch Apartment Name
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => {
         if (data && data.apartmentName) {
@@ -26,7 +26,7 @@ export function Navbar() {
 
     // Fetch unresolved anomalies count
     const fetchAnomalies = () => {
-      fetch(`${API_BASE_URL}/reconciliation/audit-trail/statistics`)
+      apiFetch("/reconciliation/audit-trail/statistics")
         .then(res => res.json())
         .then(data => {
           setAnomalyCount(data.unresolvedCount || 0);

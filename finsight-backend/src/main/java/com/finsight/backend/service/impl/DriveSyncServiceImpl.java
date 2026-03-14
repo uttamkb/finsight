@@ -9,6 +9,7 @@ import com.finsight.backend.service.AppConfigService;
 import com.finsight.backend.service.ClassificationService;
 import com.finsight.backend.service.DriveSyncService;
 import com.finsight.backend.service.OcrService;
+import com.finsight.backend.service.VendorManager;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,18 +35,21 @@ public class DriveSyncServiceImpl implements DriveSyncService {
     private final ReceiptRepository receiptRepository;
     private final OcrService ocrService;
     private final ClassificationService classificationService;
+    private final VendorManager vendorManager;
     private final Map<String, SyncStatus> statuses = new ConcurrentHashMap<>();
 
     public DriveSyncServiceImpl(AppConfigService appConfigService, 
                                 GoogleDriveClient driveClient, 
                                 ReceiptRepository receiptRepository,
                                 OcrService ocrService,
-                                ClassificationService classificationService) {
+                                ClassificationService classificationService,
+                                VendorManager vendorManager) {
         this.appConfigService = appConfigService;
         this.driveClient = driveClient;
         this.receiptRepository = receiptRepository;
         this.ocrService = ocrService;
         this.classificationService = classificationService;
+        this.vendorManager = vendorManager;
     }
 
     @Override
@@ -118,7 +123,7 @@ public class DriveSyncServiceImpl implements DriveSyncService {
                         // Map extracted fields
                         receipt.setVendor((String) extraction.getOrDefault("vendor", "Unknown"));
                         Object amountObj = extraction.get("amount");
-                        receipt.setAmount(amountObj instanceof Number ? ((Number) amountObj).doubleValue() : 0.0);
+                        receipt.setAmount(amountObj instanceof Number ? BigDecimal.valueOf(((Number) amountObj).doubleValue()) : BigDecimal.ZERO);
                         
                         String dateStr = (String) extraction.get("date");
                         try {
@@ -136,6 +141,10 @@ public class DriveSyncServiceImpl implements DriveSyncService {
                         }
 
                         receiptRepository.save(receipt);
+
+                        // Update Vendor stats
+                        vendorManager.updateVendorStats(tenantId, receipt.getVendor(), receipt.getAmount(), receipt.getDate());
+
                         processed++;
                         status.setProcessedFiles(processed);
                         status.addLog("SUCCESS: " + file.getName());

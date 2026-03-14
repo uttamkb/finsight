@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Upload, FileText, CheckCircle2, AlertCircle, Clock, Loader2, Play, Check, X } from "lucide-react";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 
 interface Category {
   id: number;
@@ -62,12 +62,15 @@ export default function StatementsPage() {
   // Filters
   const [filterReconciled, setFilterReconciled] = useState<string>("all");
 
+  const [uploadStatus, setUploadStatus] = useState<any>(null);
+  const [showUploadStatus, setShowUploadStatus] = useState(false);
+
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
     try {
       // Add optional filter 
       const filterQuery = filterReconciled !== "all" ? `&reconciled=${filterReconciled === "true"}` : "";
-      const response = await fetch(`${API_BASE_URL}/statements/transactions?page=${page}&size=15${filterQuery}`);
+      const response = await apiFetch(`/statements/transactions?page=${page}&size=15${filterQuery}`);
       if (response.ok) {
         const data = await response.json();
         setTransactions(data.content || []);
@@ -84,7 +87,7 @@ export default function StatementsPage() {
 
   const fetchAudits = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/reconciliation/audit-trail`);
+      const response = await apiFetch("/reconciliation/audit-trail");
       if (response.ok) {
         const data = await response.json();
         // filter only unresolved
@@ -97,7 +100,7 @@ export default function StatementsPage() {
 
   const fetchReceipts = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/receipts?size=100`);
+      const response = await apiFetch("/receipts?size=100");
       if (response.ok) {
         const data = await response.json();
         setReceipts(data.content || []);
@@ -111,13 +114,49 @@ export default function StatementsPage() {
     fetchTransactions();
     fetchAudits();
     fetchReceipts();
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => {
         if (data && data.currency) setCurrency(data.currency);
       })
       .catch(console.error);
   }, [fetchTransactions, fetchAudits, fetchReceipts]);
+
+  const pollUploadStatus = useCallback(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiFetch("/statements/upload/status");
+        if (res.ok) {
+          const data = await res.json();
+          setUploadStatus(data);
+          
+          if (data.status === "SUCCESS") {
+            clearInterval(interval);
+            setIsUploading(false);
+            toast(`Upload Successful: Processed ${data.processedFiles} transactions.`);
+            setPage(0);
+            fetchTransactions();
+            setTimeout(() => {
+                setUploadStatus(null);
+                setShowUploadStatus(false);
+            }, 4000);
+          } else if (data.status === "ERROR") {
+            clearInterval(interval);
+            setIsUploading(false);
+            toast(`Upload failed: ${data.message}`, "error");
+            setTimeout(() => {
+                setUploadStatus(null);
+                setShowUploadStatus(false);
+            }, 5000);
+          }
+        }
+      } catch (e) {
+        clearInterval(interval);
+        setIsUploading(false);
+        toast("Disconnected during status check.", "error");
+      }
+    }, 1000);
+  }, [fetchTransactions, toast]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -130,31 +169,33 @@ export default function StatementsPage() {
     }
 
     setIsUploading(true);
-    toast(`Uploading and parsing ${filename.endsWith(".csv") ? "CSV" : "PDF"} statement...`, "info");
+    setShowUploadStatus(true);
+    setUploadStatus({ stage: "INITIALIZING", message: "Initiating secure upload..." });
+    toast(`Uploading ${filename.endsWith(".csv") ? "CSV" : "PDF"} statement...`, "info");
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/statements/upload`, {
+      const response = await apiFetch("/statements/upload", {
         method: "POST",
         body: formData,
       });
 
       if (response.ok) {
-        const data = await response.json();
-        toast(`Success! Extracted ${data.transactionsSaved} valid transactions.`, "success");
-        setPage(0);
-        fetchTransactions();
+        pollUploadStatus();
       } else {
         const errText = await response.text();
-        toast(`Failed to process PDF: ${errText}`, "error");
+        toast(`Upload failed: ${errText}`, "error");
+        setIsUploading(false);
+        setShowUploadStatus(false);
       }
     } catch (error) {
       console.error("Upload error", error);
       toast("Connection error during upload.", "error");
-    } finally {
       setIsUploading(false);
+      setShowUploadStatus(false);
+    } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -164,7 +205,7 @@ export default function StatementsPage() {
     toast("Running Auto-Reconciliation engine...", "info");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/statements/reconcile`, {
+      const response = await apiFetch("/statements/reconcile", {
         method: "POST",
       });
 
@@ -190,7 +231,7 @@ export default function StatementsPage() {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/reconciliation/link`, {
+      const response = await apiFetch("/reconciliation/link", {
         method: "POST", 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transactionId: txnId, receiptId: Number(receiptId) })
@@ -209,7 +250,7 @@ export default function StatementsPage() {
 
   const handleIgnoreAudit = async (auditId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/reconciliation/audit-trail/${auditId}/ignore`, { method: "POST" });
+      const response = await apiFetch(`/reconciliation/audit-trail/${auditId}/ignore`, { method: "POST" });
       if (response.ok) {
         toast("Issue marked as ignored/done.", "success");
         fetchAudits();
@@ -261,6 +302,91 @@ export default function StatementsPage() {
           </button>
         </div>
       </div>
+
+      {showUploadStatus && uploadStatus && (
+        <div className="mb-8 p-6 rounded-xl border bg-card shadow-lg border-primary/20 animate-in fade-in slide-in-from-top-4">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+            
+            <div className="flex-1 space-y-6">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                Statement Processing Pipeline
+                {uploadStatus.status === "RUNNING" && <span className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span></span>}
+              </h3>
+
+              <div className="relative pl-6 space-y-6 before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-muted before:to-transparent">
+                
+                {/* Stage 1: Initializing */}
+                <div className="relative flex items-center gap-4">
+                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-muted-foreground"}`}>
+                    {uploadStatus.stage === "INITIALIZING" ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                  </div>
+                  <div>
+                    <h4 className={`text-sm font-semibold ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "text-foreground" : "text-muted-foreground"}`}>Secure Upload & Init</h4>
+                    {uploadStatus.stage === "INITIALIZING" && <p className="text-xs text-muted-foreground">{uploadStatus.message}</p>}
+                  </div>
+                </div>
+
+                {/* Stage 2: Extraction */}
+                <div className={`relative flex items-center gap-4 transition-all duration-500 ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "opacity-100 translate-y-0" : "opacity-50 translate-y-2"}`}>
+                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-muted-foreground"}`}>
+                    {uploadStatus.stage === "EXTRACTION" ? <Loader2 className="h-3 w-3 animate-spin" /> : (["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full bg-muted" />)}
+                  </div>
+                  <div>
+                    <h4 className={`text-sm font-semibold ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "text-foreground" : "text-muted-foreground"}`}>AI Data Extraction</h4>
+                    {uploadStatus.stage === "EXTRACTION" && <p className="text-xs text-muted-foreground">{uploadStatus.message}</p>}
+                    {["PERSISTENCE", "COMPLETED"].includes(uploadStatus.stage) && uploadStatus.totalFiles > 0 && <p className="text-xs text-primary font-mono">Parsed {uploadStatus.totalFiles} transactions</p>}
+                  </div>
+                </div>
+
+                {/* Stage 3: Persistence */}
+                <div className={`relative flex items-center gap-4 transition-all duration-500 delay-100 ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "opacity-100 translate-y-0" : "opacity-50 translate-y-2"}`}>
+                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "border-destructive text-destructive" : "border-primary text-primary") : "border-muted text-muted-foreground"}`}>
+                    {uploadStatus.stage === "PERSISTENCE" && uploadStatus.status !== "ERROR" ? <Loader2 className="h-3 w-3 animate-spin" /> : (uploadStatus.stage === "FAILED" ? <AlertCircle className="h-3 w-3" /> : (["COMPLETED"].includes(uploadStatus.stage) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full bg-muted" />))}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`text-sm font-semibold ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "text-destructive" : "text-foreground") : "text-muted-foreground"}`}>Database Verification</h4>
+                    
+                    {uploadStatus.stage === "PERSISTENCE" && (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-muted-foreground truncate">{uploadStatus.message}</p>
+                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                          <div 
+                            className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out" 
+                            style={{ width: `${(uploadStatus.totalFiles > 0 ? (uploadStatus.processedFiles / uploadStatus.totalFiles) * 100 : 0)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                    {uploadStatus.status === "ERROR" && <p className="text-xs text-destructive mt-1 font-mono">{uploadStatus.message}</p>}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 w-full md:w-64 bg-muted/20 rounded-xl border border-border/50 p-4 animate-in fade-in slide-in-from-right-4">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Metrics</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Transactions Extracted</p>
+                  <p className="text-xl font-bold font-mono text-primary">{uploadStatus.totalFiles || 0}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Successfully Saved</p>
+                  <p className="text-xl font-bold font-mono text-emerald-500">{uploadStatus.processedFiles || 0}</p>
+                </div>
+              </div>
+              {uploadStatus.status === "COMPLETED" && (
+                  <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-center gap-2 text-emerald-500">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="text-sm font-semibold">Upload Finished</span>
+                  </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="p-4 rounded-xl border bg-card/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">

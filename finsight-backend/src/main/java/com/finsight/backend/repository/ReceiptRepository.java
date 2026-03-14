@@ -18,4 +18,6 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
 
     @org.springframework.data.jpa.repository.Query("SELECT r.ocrModeUsed, COUNT(r) FROM Receipt r WHERE r.tenantId = :tenantId GROUP BY r.ocrModeUsed")
     List<Object[]> getOcrModeStats(@org.springframework.data.repository.query.Param("tenantId") String tenantId);
+
+    List<Receipt> findByStatus(String status);
 }

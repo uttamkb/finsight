@@ -23,8 +23,14 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     out-of-order: false
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 app:
+  api:
+    secret-key: ${APP_API_SECRET_KEY:finsight_local_dev_secret}   # Override via env var in production
   cors:
     allowed-origins:
       - http://localhost:3000
@@ -65,7 +71,7 @@ info:
 
 logging:
   level:
-    com.finsight: INFO
+    com.finsight: DEBUG
     org.flywaydb: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN

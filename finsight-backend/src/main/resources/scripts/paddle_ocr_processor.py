@@ -203,6 +203,37 @@ def extract_date(text: str) -> str:
 # Keywords that strongly indicate an address (NOT a vendor name)
 ADDRESS_KEYWORDS = ["road", "floor", "plaza", "colony", "apartment", "no.", "plot", "street", "building", "nagar", "corner", "extn", "layout"]
 
+def load_vendor_dictionary():
+    """Load verified vendor names from the auto-exported JSON dictionary."""
+    dict_path = os.path.join(os.path.dirname(__file__), "vendor_dictionary.json")
+    if os.path.exists(dict_path):
+        try:
+            with open(dict_path, 'r') as f:
+                data = json.load(f)
+                return data.get("vendors", [])
+        except:
+            pass
+    return []
+
+def extract_vendor_from_dictionary(ocr_lines: list, vendor_dict: list) -> str:
+    """
+    Match OCR text against a list of known, verified vendor names.
+    Higher priority than layout heuristics.
+    """
+    if not vendor_dict:
+        return ""
+    
+    # 1. Look for Exact or Substring matches in the top 40% of the image
+    for line in ocr_lines:
+        text = line[1][0].strip()
+        if len(text) < 3: continue
+        
+        for v in vendor_dict:
+            # Case insensitive exact or substring match
+            if v.lower() == text.lower() or (len(v) > 5 and v.lower() in text.lower()):
+                return v
+    return ""
+
 def extract_vendor_from_layout(ocr_lines: list, image_height: int) -> str:
     """
     Receipts almost always have the store/vendor name in the top 25% of the image.
@@ -396,8 +427,14 @@ def process_ocr(image_path: str):
         amount = extract_amount(parsed_lines, processed_h)
         date   = extract_date(raw_text)
 
-        # Day 3 & Day 27: Layout-based vendor extraction
-        vendor = extract_vendor_from_layout(parsed_lines, processed_h)
+        # Rule-Based Refinement: Dictionary Matching (Highest Priority)
+        vendor_dict = load_vendor_dictionary()
+        vendor = extract_vendor_from_dictionary(parsed_lines, vendor_dict)
+
+        if not vendor:
+            # Day 3 & Day 27: Layout-based vendor extraction
+            vendor = extract_vendor_from_layout(parsed_lines, processed_h)
+            
         if not vendor:
             vendor = extract_vendor_fallback(parsed_lines)
 

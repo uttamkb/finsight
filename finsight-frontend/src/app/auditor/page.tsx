@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, FileBarChart, Loader2, TrendingDown, TrendingUp, CalendarDays, Wallet } from "lucide-react";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 interface GbmReport {
@@ -31,10 +31,10 @@ export default function AuditorPage() {
     try {
       // In a real app we'd have a dedicated /gbm endpoint returning all this.
       // For now, we simulate the aggregation using existing endpoints.
-      const vendRes = await fetch(`${API_BASE_URL}/insights/vendors/top?limit=5`);
+      const vendRes = await apiFetch("/insights/vendors/top?limit=5");
       const topVendors = vendRes.ok ? await vendRes.json() : [];
 
-      const catRes = await fetch(`${API_BASE_URL}/insights/categories/spend`);
+      const catRes = await apiFetch("/insights/categories/spend");
       const categoryBreakdown = catRes.ok ? await catRes.json() : [];
 
       // Calculate totals from categories
@@ -62,7 +62,7 @@ export default function AuditorPage() {
 
   useEffect(() => {
     fetchReport();
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => {
         if (data && data.currency) setCurrency(data.currency);

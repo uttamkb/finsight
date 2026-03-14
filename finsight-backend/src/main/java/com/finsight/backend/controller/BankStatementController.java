@@ -14,13 +14,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/statements")
+@RequestMapping("/api/v1/statements")
 @CrossOrigin(origins = "*")
+@Tag(name = "Bank Statements", description = "Endpoints for uploading statements, processing them via AI, and auto-reconciliation")
 public class BankStatementController {
 
     private static final Logger log = LoggerFactory.getLogger(BankStatementController.class);
@@ -37,49 +41,50 @@ public class BankStatementController {
         this.bankTransactionRepository = bankTransactionRepository;
     }
 
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadStatement(@RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
+    @Operation(summary = "Upload Bank Statement", description = "Uploads a PDF or CSV bank statement for AI-based processing and transaction extraction.")
+    public ResponseEntity<?> uploadStatement(
+            @Parameter(description = "The bank statement file to upload (.pdf, .csv)") @RequestParam("file") MultipartFile file) {
+        log.info("Received upload request for file: {}", file.getOriginalFilename());
         try {
             String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
             if (file.isEmpty() || (!filename.endsWith(".pdf") && !filename.endsWith(".csv"))) {
                 return ResponseEntity.badRequest().body("Please upload a valid PDF or CSV bank statement.");
             }
 
-            int savedCount;
-            if (filename.endsWith(".csv")) {
-                savedCount = bankStatementService.processCsvStatement(file);
-            } else {
-                savedCount = bankStatementService.processPdfStatement(file);
-            }
-
+            bankStatementService.processStatementAsync("local_tenant", file);
+            
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Bank statement processed successfully.");
-            response.put("transactionsSaved", savedCount);
-            response.put("manualReconcileRequired", true);
+            response.put("message", "Bank statement upload initiated.");
+            return ResponseEntity.accepted().body(response);
 
-            return ResponseEntity.ok(response);
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid CSV format: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            log.error("Error processing bank statement", e);
+            log.error("Error initiating bank statement upload", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to process statement: " + e.getMessage());
+                    .body("Failed to initiate processing: " + e.getMessage());
         }
     }
 
+    @GetMapping("/upload/status")
+    @Operation(summary = "Get Upload processing status", description = "Polls the current status of the async bank statement processing task.")
+    public ResponseEntity<?> getUploadStatus() {
+        return ResponseEntity.ok(bankStatementService.getUploadStatus("local_tenant"));
+    }
+
     @GetMapping("/transactions")
+    @Operation(summary = "Get Bank Transactions", description = "Fetches a paginated list of parsed bank transactions.")
     public ResponseEntity<Page<BankTransactionDto>> getTransactions(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "15") int size) {
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "15") int size,
+            @Parameter(description = "Filter by reconciled status (true/false)") @RequestParam(required = false) Boolean reconciled) {
 
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("txDate").descending());
-        Page<BankTransactionDto> transactions = bankStatementService.getPagedTransactions("local_tenant", pageRequest);
+        Page<BankTransactionDto> transactions = bankStatementService.getPagedTransactions("local_tenant", pageRequest, reconciled);
         return ResponseEntity.ok(transactions);
     }
 
     @PostMapping("/reconcile")
+    @Operation(summary = "Trigger Auto-Reconciliation", description = "Manually triggers the auto-reconciliation engine to link unlinked transactions with receipts.")
     public ResponseEntity<?> triggerManualReconciliation() {
         try {
             int reconciledCount = reconciliationService.runReconciliation();

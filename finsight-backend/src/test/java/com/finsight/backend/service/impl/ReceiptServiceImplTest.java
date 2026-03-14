@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +44,7 @@ class ReceiptServiceImplTest {
         sampleReceipt = new Receipt();
         sampleReceipt.setId(1L);
         sampleReceipt.setVendor("Old Vendor");
-        sampleReceipt.setAmount(10.0);
+        sampleReceipt.setAmount(BigDecimal.valueOf(10.0));
         sampleReceipt.setDriveFileId("drive-123");
     }
 
@@ -51,7 +52,7 @@ class ReceiptServiceImplTest {
     void testUpdateReceipt_HarvestsData() throws Exception {
         Receipt updateData = new Receipt();
         updateData.setVendor("New Vendor");
-        updateData.setAmount(20.0);
+        updateData.setAmount(BigDecimal.valueOf(20.0));
 
         when(receiptRepository.findById(1L)).thenReturn(Optional.of(sampleReceipt));
         when(receiptRepository.save(any(Receipt.class))).thenAnswer(i -> i.getArgument(0));
@@ -66,7 +67,7 @@ class ReceiptServiceImplTest {
 
         // Verify synchronous DB update
         assertEquals("New Vendor", result.getVendor());
-        assertEquals(20.0, result.getAmount());
+        assertEquals(BigDecimal.valueOf(20.0), result.getAmount());
         assertEquals("VERIFIED", result.getStatus());
         verify(receiptRepository).save(sampleReceipt);
 

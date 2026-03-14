@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 
 interface VendorInsight {
   vendorName: string;
@@ -56,14 +56,14 @@ export default function VendorsPage() {
   const fetchInsights = useCallback(async () => {
     setIsLoading(true);
     try {
-      const vendRes = await fetch(`${API_BASE_URL}/insights/vendors/top?limit=10`);
+      const vendRes = await apiFetch("/insights/vendors/top?limit=10");
       if (vendRes.ok) setVendors(await vendRes.json());
 
-      const catRes = await fetch(`${API_BASE_URL}/insights/categories/spend`);
+      const catRes = await apiFetch("/insights/categories/spend");
       if (catRes.ok) setCategories(await catRes.json());
 
       // Fetch forensic history
-      const historyRes = await fetch(`${API_BASE_URL}/insights/anomalies/history`);
+      const historyRes = await apiFetch("/insights/anomalies/history");
       if (historyRes.ok) {
         const historyData = await historyRes.json();
         if (historyData.length > 0) {
@@ -82,7 +82,7 @@ export default function VendorsPage() {
 
   useEffect(() => {
     fetchInsights();
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => {
         if (data && data.currency) setCurrency(data.currency);
@@ -96,11 +96,11 @@ export default function VendorsPage() {
     if (!isSilent) toast("Auditing recent transactions with Gemini 1.5 Pro...", "info");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/insights/anomalies/detect`);
+      const res = await apiFetch("/insights/anomalies/detect");
       if (res.ok) {
         const data = await res.json();
         // Since detect endpoint now persists to DB, we should refresh from history to stay consistent
-        const historyRes = await fetch(`${API_BASE_URL}/insights/anomalies/history`);
+        const historyRes = await apiFetch("/insights/anomalies/history");
         if (historyRes.ok) {
           setAnomalies(await historyRes.json());
         } else {

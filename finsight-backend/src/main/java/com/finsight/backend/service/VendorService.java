@@ -3,6 +3,7 @@ package com.finsight.backend.service;
 import com.finsight.backend.dto.CategoryInsightDto;
 import com.finsight.backend.dto.VendorInsightDto;
 import com.finsight.backend.repository.BankTransactionRepository;
+import com.finsight.backend.repository.VendorRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -13,15 +14,22 @@ public class VendorService {
 
     private final BankTransactionRepository bankTransactionRepository;
     private final com.finsight.backend.repository.ReceiptRepository receiptRepository;
+    private final VendorRepository vendorRepository;
 
     public VendorService(BankTransactionRepository bankTransactionRepository,
-                         com.finsight.backend.repository.ReceiptRepository receiptRepository) {
+                         com.finsight.backend.repository.ReceiptRepository receiptRepository,
+                         VendorRepository vendorRepository) {
         this.bankTransactionRepository = bankTransactionRepository;
         this.receiptRepository = receiptRepository;
+        this.vendorRepository = vendorRepository;
     }
 
     public List<VendorInsightDto> getTopVendors(int limit) {
-        return bankTransactionRepository.getTopSpendingByVendor("local_tenant", PageRequest.of(0, limit));
+        return vendorRepository.findByTenantIdOrderByTotalSpentDesc("local_tenant")
+                .stream()
+                .limit(limit)
+                .map(v -> new VendorInsightDto(v.getName(), v.getTotalSpent(), (long) v.getTotalPayments()))
+                .toList();
     }
 
     public List<CategoryInsightDto> getSpendByCategory() {

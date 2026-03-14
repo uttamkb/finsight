@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid 
@@ -46,7 +46,7 @@ export default function ResidentFeedbackDashboard() {
 
   const fetchSurvey = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/survey/current?tenantId=local_tenant`);
+      const res = await apiFetch("/survey/current?tenantId=local_tenant");
       const currentSurvey = await res.json();
       if (currentSurvey) {
         setSurvey(currentSurvey);
@@ -62,7 +62,7 @@ export default function ResidentFeedbackDashboard() {
 
   const fetchDashboard = async (surveyId: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/survey/dashboard?surveyId=${surveyId}`);
+      const res = await apiFetch(`/survey/dashboard?surveyId=${surveyId}`);
       const dashboardData = await res.json();
       setData(dashboardData);
     } catch (err) {
@@ -76,7 +76,7 @@ export default function ResidentFeedbackDashboard() {
     if (!survey) return;
     setSyncing(true);
     try {
-      await fetch(`${API_BASE_URL}/survey/sync?surveyId=${survey.id}`, { method: "POST" });
+      await apiFetch(`/survey/sync?surveyId=${survey.id}`, { method: "POST" });
       await fetchDashboard(survey.id);
     } catch (err) {
       console.error("Sync failed:", err);

@@ -28,18 +28,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finsight.backend.entity.AppConfig;
 import com.finsight.backend.service.AppConfigService;
 import com.finsight.backend.service.OcrService;
+import com.finsight.backend.service.VendorDictionaryService;
 
 @Service
 public class OcrServiceImpl implements OcrService {
     private static final Logger log = LoggerFactory.getLogger(OcrServiceImpl.class);
 
     private final AppConfigService appConfigService;
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
+    private final VendorDictionaryService vendorDictionaryService;
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
-    public OcrServiceImpl(AppConfigService appConfigService) {
+    public OcrServiceImpl(AppConfigService appConfigService, VendorDictionaryService vendorDictionaryService) {
         this.appConfigService = appConfigService;
+        this.vendorDictionaryService = vendorDictionaryService;
     }
 
     @Override
@@ -206,9 +209,17 @@ public class OcrServiceImpl implements OcrService {
         String requestBody = String.format("{\"contents\":[{\"parts\":[{\"text\":\"%s\"},{\"inline_data\":{\"mime_type\":\"%s\",\"data\":\"%s\"}}]}]}", 
                 prompt.replace("\"", "\\\"").replace("\n", "\\n"), mimeType, base64Data);
 
+        // Throttling to avoid Gemini API rate limits (especially for parallel threads)
+        try {
+            Thread.sleep(1200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GEMINI_API_URL + apiKey))
+                .uri(URI.create(GEMINI_API_URL))
                 .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
@@ -219,6 +230,14 @@ public class OcrServiceImpl implements OcrService {
             String cleanText = text.replaceAll("```json|```", "").trim();
             Map<String, Object> res = parseOcrOutput(cleanText, fileName);
             res.put("confidence", 1.0);
+
+            // Add to Vendor Dictionary if extraction was successful
+            String vendor = (String) res.get("vendor");
+            if (vendor != null && !"Unknown Vendor".equalsIgnoreCase(vendor)) {
+                // We use a generic tenantId for now or pass it via context if multi-tenancy is active
+                vendorDictionaryService.addVendor("local_tenant", vendor, "MAX_ACCURACY_OCR");
+            }
+
             return res;
         } else {
             throw new RuntimeException("Gemini OCR failed: " + response.body());

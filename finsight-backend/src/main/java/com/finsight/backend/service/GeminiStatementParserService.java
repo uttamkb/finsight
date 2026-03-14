@@ -12,7 +12,25 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import java.io.InputStreamReader;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -22,38 +40,52 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
 
 @Service
 public class GeminiStatementParserService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiStatementParserService.class);
-    // Upgraded to gemini-2.0-flash for faster, cheaper, and structured extraction
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
+    // Upgraded to gemini-3-flash-preview for faster, cheaper, and structured extraction
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
 
     private final AppConfigService appConfigService;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    // Strict prompt to enforce JSON output for fallback
+    // Improved prompt with Counterparty Intelligence
     private static final String PARSING_PROMPT = """
         You are a highly accurate financial data extraction assistant.
-        I am providing you with a bank statement in PDF format.
+        I am providing you with a chunk of a bank statement PDF.
         Please extract all transaction line items from this document.
-        
-        CRITICAL INSTRUCTIONS:
-        1. Extract EVERY transaction listed.
-        2. Format txDate exactly as YYYY-MM-DD if possible, but keep the original string if unsure.
-        3. Determine type: 'DEBIT' for withdrawals/payments (money out), 'CREDIT' for deposits/income (money in).
-        4. amount MUST be a positive number.
-        5. description should be the core narration/payee.
-        
+
+        EXTRACTION RULES:
+        1. Each table row represents a transaction.
+        2. If Withdrawal (Dr) has a value -> type = "DEBIT".
+        3. If Deposit (Cr) has a value -> type = "CREDIT".
+        4. Remove commas and currency symbols from numeric values.
+        5. Convert dates to ISO format: YYYY-MM-DD.
+        6. Ignore headers, totals, and non-transaction rows.
+
+        COUNTERPARTY EXTRACTION RULES:
+        1. The "Remarks" or "Description" column contains the counterparty/narration.
+        2. If type = CREDIT:
+           - counterparty = the sender or payer name.
+           - Example: "UPI/JohnDoe/HDFC BANK" -> counterparty = "JohnDoe"
+        3. If type = DEBIT:
+           - counterparty = merchant or vendor name.
+           - Example: "UPI/Swiggy/HDFC BANK" -> counterparty = "Swiggy"
+        4. Remove bank names and transaction channel prefixes such as: UPI, IMPS, NEFT, POS, CARD, HDFC BANK, ICICI BANK, etc.
+        5. The vendor/counterparty should be a clean human or merchant name.
+
         Return the data strictly as a JSON object matching this schema:
         {
           "transactions": [
             {
-              "txDate": "string",
-              "description": "string",
-              "vendor": "string",
+              "txDate": "YYYY-MM-DD",
+              "description": "Original narration",
+              "vendor": "Cleaned merchant/person name",
               "type": "DEBIT|CREDIT",
               "amount": number,
               "category": "string"
@@ -63,9 +95,13 @@ public class GeminiStatementParserService {
         Do not include any other text or markdown formatting.
         """;
 
+    private static final int PAGES_PER_CHUNK = 2;
+
     public GeminiStatementParserService(AppConfigService appConfigService) {
         this.appConfigService = appConfigService;
-        this.httpClient = HttpClient.newBuilder().build();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(30))
+                .build();
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
@@ -184,18 +220,52 @@ public class GeminiStatementParserService {
             throw new IllegalStateException("Gemini API Key is missing. Cannot perform AI extraction.");
         }
 
-        byte[] pdfBytes = file.getBytes();
-        String base64Pdf = Base64.getEncoder().encodeToString(pdfBytes);
+        List<ParsedBankTransactionDto> allTransactions = new ArrayList<>();
+        
+        try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(file.getBytes())) {
+            int pageCount = document.getNumberOfPages();
+            log.info("PDF has {} pages. Processing in chunks of {} pages.", pageCount, PAGES_PER_CHUNK);
 
+            for (int i = 0; i < pageCount; i += PAGES_PER_CHUNK) {
+                int end = Math.min(i + PAGES_PER_CHUNK, pageCount);
+                log.info("Processing chunk: pages {} to {}", i + 1, end);
+                
+                try (org.apache.pdfbox.pdmodel.PDDocument chunk = new org.apache.pdfbox.pdmodel.PDDocument()) {
+                    for (int j = i; j < end; j++) {
+                        chunk.addPage(document.getPage(j));
+                    }
+                    
+                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                    chunk.save(baos);
+                    byte[] chunkBytes = baos.toByteArray();
+                    
+                    List<ParsedBankTransactionDto> chunkResult = callGeminiForChunk(chunkBytes, apiKey);
+                    if (chunkResult != null) {
+                        allTransactions.addAll(chunkResult);
+                    }
+                }
+            }
+        }
+
+        log.info("Successfully extracted {} transactions across all chunks.", allTransactions.size());
+        return allTransactions;
+    }
+
+    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000, multiplier = 2))
+    protected List<ParsedBankTransactionDto> callGeminiForChunk(byte[] pdfBytes, String apiKey) throws Exception {
+        // Step 1: Upload via Gemini File API
+        String fileUri = uploadChunkToGemini(pdfBytes, apiKey);
+
+        // Step 2: Use fileUri in Generation Request
         String requestBody = String.format("""
             {
               "contents": [{
                 "parts": [
                   {"text": "%s"},
                   {
-                    "inline_data": {
+                    "file_data": {
                       "mime_type": "application/pdf",
-                      "data": "%s"
+                      "file_uri": "%s"
                     }
                   }
                 ]
@@ -205,11 +275,14 @@ public class GeminiStatementParserService {
                 "responseMimeType": "application/json"
               }
             }
-            """, escapeJson(PARSING_PROMPT), base64Pdf);
+            """, escapeJson(PARSING_PROMPT), fileUri);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GEMINI_API_URL + apiKey))
+                .uri(URI.create(GEMINI_API_URL))
                 .header("Content-Type", "application/json")
+                .header("Connection", "close")
+                .header("x-goog-api-key", apiKey)
+                .timeout(Duration.ofMinutes(3))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
@@ -226,10 +299,41 @@ public class GeminiStatementParserService {
                 .path("content").path("parts").get(0)
                 .path("text").asText();
 
-        String cleanText = jsonTextContent.replaceAll("(?s).*?\\{", "{").replaceAll("(?s)\\}.*?\\z", "}");
+        String cleanText = jsonTextContent.trim();
+        int firstBrace = cleanText.indexOf('{');
+        int lastBrace = cleanText.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        }
 
         GeminiBankStatementResponse result = objectMapper.readValue(cleanText, GeminiBankStatementResponse.class);
         return result.getTransactions() != null ? result.getTransactions() : new ArrayList<>();
+    }
+
+    private String uploadChunkToGemini(byte[] pdfBytes, String apiKey) throws Exception {
+        String uploadUrl = "https://generativelanguage.googleapis.com/upload/v1beta/files?key=" + apiKey;
+        
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uploadUrl))
+                .header("X-Goog-Upload-Protocol", "raw")
+                .header("X-Goog-Upload-Command", "start, upload, finalize")
+                .header("X-Goog-Upload-Header-Content-Length", String.valueOf(pdfBytes.length))
+                .header("X-Goog-Upload-Header-Content-Type", "application/pdf")
+                .header("Content-Type", "application/pdf")
+                .header("Connection", "close")
+                .timeout(Duration.ofMinutes(3))
+                .POST(HttpRequest.BodyPublishers.ofByteArray(pdfBytes))
+                .build();
+                
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        
+        if (response.statusCode() != 200) {
+            log.error("Gemini Upload API Error: Status={}, Body={}", response.statusCode(), response.body());
+            throw new RuntimeException("Failed to upload chunk via Gemini API. HTTP " + response.statusCode());
+        }
+        
+        var uploadNode = objectMapper.readTree(response.body());
+        return uploadNode.path("file").path("uri").asText();
     }
 
     private String escapeJson(String text) {

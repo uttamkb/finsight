@@ -2,6 +2,7 @@ package com.finsight.backend.service.impl;
 
 import com.finsight.backend.entity.AppConfig;
 import com.finsight.backend.service.AppConfigService;
+import com.finsight.backend.service.VendorDictionaryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -30,6 +31,9 @@ class OcrServiceImplTest {
     @Mock
     private AppConfigService appConfigService;
 
+    @Mock
+    private VendorDictionaryService vendorDictionaryService;
+
     private OcrServiceImpl ocrService;
     private AppConfig mockConfig;
 
@@ -38,7 +42,7 @@ class OcrServiceImplTest {
         MockitoAnnotations.openMocks(this);
         mockConfig = new AppConfig();
         when(appConfigService.getConfig()).thenReturn(mockConfig);
-        ocrService = spy(new OcrServiceImpl(appConfigService));
+        ocrService = spy(new OcrServiceImpl(appConfigService, vendorDictionaryService));
     }
 
     private Map<String, Object> localResult(double confidence, String rawText) {

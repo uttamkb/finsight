@@ -11,13 +11,17 @@ import com.finsight.backend.service.survey.GoogleSheetsSyncService;
 import com.finsight.backend.service.survey.SurveyAiService;
 import com.finsight.backend.service.survey.SurveyAnalyticsService;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/survey")
+@RequestMapping("/api/v1/survey")
 @CrossOrigin(origins = "*")
+@Tag(name = "Quarterly Surveys", description = "Endpoints for managing automated Google Forms surveys and collecting vendor feedback")
 public class SurveyController {
 
     private final GoogleFormsService formsService;
@@ -42,12 +46,17 @@ public class SurveyController {
     }
 
     @PostMapping("/create")
-    public Survey createSurvey(@RequestParam String tenantId, @RequestParam String quarter, @RequestParam int year) throws Exception {
+    @Operation(summary = "Create Quarterly Survey", description = "Generates a new Google Form targeted at vendor feedback for current tenant context.")
+    public Survey createSurvey(
+            @Parameter(description = "Tenant ID") @RequestParam String tenantId, 
+            @Parameter(description = "Financial quarter, e.g., Q1") @RequestParam String quarter, 
+            @Parameter(description = "Current year") @RequestParam int year) throws Exception {
         return formsService.createQuarterlySurvey(tenantId, quarter, year);
     }
 
     @GetMapping("/current")
-    public Survey getCurrentSurvey(@RequestParam String tenantId) {
+    @Operation(summary = "Get Current Active Survey", description = "Checks system constraints and outputs the actively tracked survey.")
+    public Survey getCurrentSurvey(@Parameter(description = "Tenant ID") @RequestParam String tenantId) {
         return surveyRepository.findFirstByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, "ACTIVE")
                 .orElse(null);
     }
@@ -63,7 +72,8 @@ public class SurveyController {
     }
 
     @PostMapping("/sync")
-    public String syncAndAnalyze(@RequestParam Long surveyId) throws Exception {
+    @Operation(summary = "Sync Survey Responses", description = "Pulls in new Google Forms submitted responses sequentially into standard DB formats.")
+    public String syncAndAnalyze(@Parameter(description = "Target Survey ID") @RequestParam Long surveyId) throws Exception {
         syncService.syncResponses(surveyId);
         aiService.generateInsights(surveyId);
         return "Sync and AI analysis completed successfully.";

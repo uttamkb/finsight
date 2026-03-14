@@ -59,9 +59,57 @@ echo ">>> [3/4] Starting Backend on Port 8080..."
 cd finsight-backend
 mkdir -p tmp
 export TMPDIR=$(pwd)/tmp
+
 # Run backend directly using Maven to avoid JAR assembly permission issues
 mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Djava.io.tmpdir=$(pwd)/tmp" -Dmaven.repo.local=$(pwd)/.m2_repo > backend.log 2>&1 &
 BACKEND_PID=$!
+
+# --- CI/CD: Asynchronous Background Tests ---
+echo ">>> [CI/CD] Triggering Background Unit Tests..."
+REPORT_FILE="$(pwd)/full_test_report.log"
+echo "--- FinSight CI/CD Test Report: $(date) ---" > "$REPORT_FILE"
+
+(
+    # 1. Run Backend Tests
+    echo "--- 1. Backend Unit Tests ---" >> "$REPORT_FILE"
+    mvn test -Dmaven.repo.local=$(pwd)/.m2_repo -Djava.io.tmpdir=$(pwd)/tmp -Djunit.jupiter.tempdir.parent.path=$(pwd)/tmp >> "$REPORT_FILE" 2>&1
+    BACKEND_EXIT=$?
+    
+    if [ $BACKEND_EXIT -eq 0 ]; then
+        echo "✅ Backend Tests Passed" >> "$REPORT_FILE"
+    else
+        echo "❌ Backend Tests Failed" >> "$REPORT_FILE"
+    fi
+
+    # 2. Run Frontend Tests
+    echo -e "\n--- 2. Frontend Unit Tests ---" >> "$REPORT_FILE"
+    cd ../finsight-frontend
+    # Note: Using --run for non-interactive mode
+    npm test >> "$REPORT_FILE" 2>&1
+    FRONTEND_EXIT=$?
+    
+    if [ $FRONTEND_EXIT -eq 0 ]; then
+        echo "✅ Frontend Tests Passed" >> "$REPORT_FILE"
+    else
+        echo "❌ Frontend Tests Failed" >> "$REPORT_FILE"
+    fi
+
+    # Final Result
+    if [ $BACKEND_EXIT -eq 0 ] && [ $FRONTEND_EXIT -eq 0 ]; then
+        echo -e "\n\n==========================================" >> "$REPORT_FILE"
+        echo "🎉 [CI/CD] ALL SYSTEMS NOMINAL. ALL TESTS PASSED." >> "$REPORT_FILE"
+        echo "==========================================" >> "$REPORT_FILE"
+        echo ">>> ✅ [CI/CD] All Unit Tests PASSED. (Check finsight-backend/full_test_report.log)"
+    else
+        echo -e "\n\n==========================================" >> "$REPORT_FILE"
+        echo "⚠️  [CI/CD] PIPELINE PARTIALLY FAILED." >> "$REPORT_FILE"
+        echo "==========================================" >> "$REPORT_FILE"
+        echo ">>> ⚠️  [CI/CD] Unit Tests COMPLETED WITH ERRORS. Check finsight-backend/full_test_report.log"
+    fi
+) &
+TEST_PID=$!
+# ---------------------------------------------
+
 cd ..
 
 # Wait a few seconds for the backend to initialize before starting the frontend
@@ -82,6 +130,9 @@ echo ""
 echo " 🟢 Backend API:  http://localhost:8080"
 echo " 🟢 Frontend UI:  http://localhost:3000"
 echo ""
+echo " ℹ️  Asynchronous Tests (PID: $TEST_PID) are running in the background."
+echo "    Check 'finsight-backend/full_test_report.log' for results."
+echo ""
 echo " NOTE: Press Ctrl+C to safely shut down both services."
 echo "========================================================"
 
@@ -93,6 +144,8 @@ cleanup() {
     kill $FRONTEND_PID 2>/dev/null || true
     echo "Killing Backend (PID: $BACKEND_PID)..."
     kill $BACKEND_PID 2>/dev/null || true
+    echo "Wait, checking background tests..."
+    kill $TEST_PID 2>/dev/null || true
     echo "Shutdown complete. Goodbye!"
     exit 0
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CopyCheck, AlertTriangle, AlertCircle, Loader2, Download, Filter, CheckCheck } from "lucide-react";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 
 interface AuditTrail {
   id: number;
@@ -71,14 +71,14 @@ export default function ReconciliationPage() {
   const fetchAudits = useCallback(async (filter = "") => {
     setIsLoading(true);
     try {
-      const url = `${API_BASE_URL}/reconciliation/audit-trail${filter ? `?issueType=${filter}` : ""}`;
-      const res = await fetch(url);
+      const url = `/reconciliation/audit-trail${filter ? `?issueType=${filter}` : ""}`;
+      const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
         setAudits(Array.isArray(data) ? data : data.content || []);
       }
 
-      const statsRes = await fetch(`${API_BASE_URL}/reconciliation/audit-trail/statistics`);
+      const statsRes = await apiFetch("/reconciliation/audit-trail/statistics");
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats({ 
@@ -96,7 +96,7 @@ export default function ReconciliationPage() {
 
   useEffect(() => {
     fetchAudits(issueTypeFilter);
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => { if (data?.currency) setCurrency(data.currency); })
       .catch(console.error);
@@ -105,7 +105,7 @@ export default function ReconciliationPage() {
   const handleResolve = async (id: number) => {
     setResolvingId(id);
     try {
-      const res = await fetch(`${API_BASE_URL}/reconciliation/audit-trail/${id}/resolve`, {
+      const res = await apiFetch(`/reconciliation/audit-trail/${id}/resolve`, {
         method: "POST",
       });
       if (res.ok) {
@@ -121,8 +121,25 @@ export default function ReconciliationPage() {
     }
   };
 
-  const handleExportCsv = () => {
-    window.location.href = `${API_BASE_URL}/reconciliation/audit-trail/export`;
+  const handleExportCsv = async () => {
+    try {
+      const response = await apiFetch("/reconciliation/audit-trail/export");
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit_trail_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        toast("Failed to export. Unauthorized or server error.", "error");
+      }
+    } catch (e) {
+      toast("Connection error during export.", "error");
+    }
   };
 
   const unresolvedAudits = audits.filter(a => !a.resolved);

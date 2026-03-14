@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Receipt as ReceiptIcon, RefreshCw, Search, Filter, ChevronLeft, ChevronRight, FileText, CheckCircle2, AlertCircle, Clock, Loader2, ScrollText, X } from "lucide-react";
 import { useToast } from "@/components/toast-provider";
 import { formatCurrency } from "@/lib/utils";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 
 interface Receipt {
   id: number;
@@ -36,7 +36,7 @@ export default function ReceiptsPage() {
     setIsLoading(true);
     try {
       const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
-      const response = await fetch(`${API_BASE_URL}/receipts?page=${page}&size=10${searchParam}`);
+      const response = await apiFetch(`/receipts?page=${page}&size=10${searchParam}`);
       if (response.ok) {
         const data = await response.json();
         setReceipts(data.content || []);
@@ -53,7 +53,7 @@ export default function ReceiptsPage() {
   useEffect(() => {
     fetchReceipts();
     // Fetch global currency preference
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then(res => res.json())
       .then(data => {
         if (data && data.currency) {
@@ -68,7 +68,7 @@ export default function ReceiptsPage() {
   const pollSyncStatus = useCallback(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/sync/google-drive/status`);
+        const res = await apiFetch("/sync/google-drive/status");
         if (res.ok) {
           const data = await res.json();
           setSyncStatus(data);
@@ -100,7 +100,7 @@ export default function ReceiptsPage() {
     toast("Sync sequence initiated...", "info");
     
     try {
-      const response = await fetch(`${API_BASE_URL}/sync/google-drive`, {
+      const response = await apiFetch("/sync/google-drive", {
         method: "POST"
       });
       if (response.ok) {
@@ -140,7 +140,7 @@ export default function ReceiptsPage() {
             onClick={async () => {
               setShowLogs(true);
               try {
-                const res = await fetch(`${API_BASE_URL}/sync/google-drive/status`);
+                const res = await apiFetch("/sync/google-drive/status");
                 if (res.ok) {
                   const data = await res.json();
                   setSyncStatus(data);

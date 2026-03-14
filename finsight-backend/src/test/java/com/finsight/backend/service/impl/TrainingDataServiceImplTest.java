@@ -1,54 +1,101 @@
 package com.finsight.backend.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finsight.backend.entity.Receipt;
-import org.junit.jupiter.api.AfterEach;
+import com.finsight.backend.repository.ReceiptRepository;
+import com.finsight.backend.client.GoogleDriveClient;
+import com.finsight.backend.service.AppConfigService;
+import com.finsight.backend.service.VendorDictionaryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.io.File;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class TrainingDataServiceImplTest {
 
+    @Mock
+    private ReceiptRepository receiptRepository;
+
+    @Mock
+    private GoogleDriveClient driveClient;
+
+    @Mock
+    private AppConfigService appConfigService;
+
+    @Mock
+    private VendorDictionaryService vendorDictionaryService;
+
     private TrainingDataServiceImpl trainingDataService;
-    private static final String TEST_DIR = "training_data/harvested";
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
-    void setUp() {
-        trainingDataService = new TrainingDataServiceImpl();
+    void setUp() throws IOException {
+        MockitoAnnotations.openMocks(this);
+        trainingDataService = new TrainingDataServiceImpl(receiptRepository, driveClient, appConfigService, vendorDictionaryService, "target/training_data/harvested");
     }
 
     @Test
-    void testHarvest_createsImageAndJsonFiles() {
-        Receipt receipt = new Receipt();
-        receipt.setId(101L);
-        receipt.setVendor("Acme Corp");
-        receipt.setAmount(123.45);
-        receipt.setFileName("receipt.jpg");
+    void testUpdateSample() throws Exception {
+        // Arrange
+        String sampleId = "test_sample_123";
+        Path harvestPath = Path.of("target/training_data/harvested");
+        Files.createDirectories(harvestPath);
+        Path jsonPath = harvestPath.resolve(sampleId + ".json");
+        
+        Map<String, Object> initialMetadata = new HashMap<>();
+        initialMetadata.put("vendor", "Old Vendor");
+        initialMetadata.put("amount", 100.0);
+        Files.writeString(jsonPath, objectMapper.writeValueAsString(initialMetadata));
 
-        byte[] fakeImage = "fake_image_content".getBytes();
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("vendor", "New Vendor");
+        updates.put("verified", true);
 
-        trainingDataService.harvest(receipt, fakeImage);
+        // Act
+        trainingDataService.updateSample(sampleId, updates);
 
-        // Verify files exist in TEST_DIR
-        File dir = new File(TEST_DIR);
-        assertTrue(dir.exists());
+        // Assert
+        String updatedJson = Files.readString(jsonPath);
+        Map<String, Object> result = objectMapper.readValue(updatedJson, Map.class);
+        assertEquals("New Vendor", result.get("vendor"));
+        assertEquals(true, result.get("verified"));
+        
+        // Verify VendorDictionaryService was called
+        verify(vendorDictionaryService).addVendor(any(), eq("New Vendor"), eq("MANUAL_VERIFICATION"));
+        
+        // Cleanup
+        Files.deleteIfExists(jsonPath);
+    }
 
-        File[] files = dir.listFiles();
-        assertTrue(files != null && files.length >= 2, "Should create exactly two files (img and json)");
+    @Test
+    void testDeleteSample() throws Exception {
+        // Arrange
+        String sampleId = "to_delete";
+        Path harvestPath = Path.of("target/training_data/harvested");
+        Files.createDirectories(harvestPath);
+        Path jsonPath = harvestPath.resolve(sampleId + ".json");
+        Path imgPath = harvestPath.resolve(sampleId + ".jpg");
+        
+        Files.writeString(jsonPath, "{}");
+        Files.writeString(imgPath, "fake-image-data");
 
-        boolean foundJson = false;
-        boolean foundJpg = false;
-        for (File f : files) {
-            if (f.getName().endsWith(".json")) foundJson = true;
-            if (f.getName().endsWith(".jpg")) foundJpg = true;
-        }
+        // Act
+        trainingDataService.deleteSample(sampleId);
 
-        assertTrue(foundJson, "JSON metadata file not created");
-        assertTrue(foundJpg, "Image file not created");
+        // Assert
+        assertFalse(Files.exists(jsonPath));
+        assertFalse(Files.exists(imgPath));
     }
 }

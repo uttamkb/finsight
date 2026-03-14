@@ -8,6 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -17,7 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/reconciliation")
+@RequestMapping("/api/v1/reconciliation")
+@Tag(name = "Reconciliation & Audit", description = "Endpoints for managing the audit trail of unlinked transactions and manual receipts matching")
 public class ReconciliationController {
 
     private static final Logger log = LoggerFactory.getLogger(ReconciliationController.class);
@@ -35,8 +39,9 @@ public class ReconciliationController {
      * Returns the full audit trail with optional filtering by issue type.
      */
     @GetMapping("/audit-trail")
+    @Operation(summary = "Get Audit Trail", description = "Fetch audit log mapping failures or unlinked transactions.")
     public ResponseEntity<List<AuditTrailDto>> getAuditTrail(
-            @RequestParam(value = "issueType", required = false) String issueType) {
+            @Parameter(description = "Filter by specific issue type (e.g. UNMATCHED_TRANSACTION)") @RequestParam(value = "issueType", required = false) String issueType) {
         List<AuditTrail> results;
         if (issueType != null && !issueType.isBlank()) {
             try {
@@ -60,16 +65,17 @@ public class ReconciliationController {
      * Returns summary statistics for the audit trail.
      */
     @GetMapping({"/audit-trail/statistics", "/audit-trail/stats"})
+    @Operation(summary = "Get Audit Trail Stats", description = "Get aggregate counts of resolved vs unresolved audit trail issues.")
     public ResponseEntity<Map<String, Object>> getAuditStats() {
-        List<AuditTrail> all = auditTrailRepository.findByTenantId("local_tenant");
-        long total = all.size();
-        long unresolvedCount = all.stream().filter(a -> !Boolean.TRUE.equals(a.getResolved())).count();
-        long resolved = total - unresolvedCount;
+        // H3 — use COUNT queries instead of fetching full table into memory
+        long unresolved = auditTrailRepository.countByTenantIdAndResolved("local_tenant", false);
+        long resolved   = auditTrailRepository.countByTenantIdAndResolved("local_tenant", true);
+        long total      = unresolved + resolved;
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("total", total);
-        stats.put("unresolvedCount", unresolvedCount);
-        stats.put("unresolved", unresolvedCount); // Backward compatibility
+        stats.put("unresolvedCount", unresolved);
+        stats.put("unresolved", unresolved); // backward compat
         stats.put("resolved", resolved);
         return ResponseEntity.ok(stats);
     }
@@ -78,7 +84,9 @@ public class ReconciliationController {
      * Marks an audit trail item as resolved.
      */
     @PostMapping("/audit-trail/{id}/resolve")
-    public ResponseEntity<?> resolveAuditItem(@PathVariable Long id) {
+    @Operation(summary = "Resolve Audit Item", description = "Mark an audit trail anomaly as mechanically resolved.")
+    public ResponseEntity<?> resolveAuditItem(
+            @Parameter(description = "Audit Item ID") @PathVariable Long id) {
         return auditTrailRepository.findById(id).map(entry -> {
             entry.setResolved(true);
             entry.setResolvedAt(LocalDateTime.now());
@@ -96,6 +104,7 @@ public class ReconciliationController {
      * Manually links a bank transaction and a receipt.
      */
     @PostMapping("/link")
+    @Operation(summary = "Manually Link Transaction", description = "Link an orphaned bank transaction with a specific receipt ID.")
     public ResponseEntity<?> manuallyLink(@RequestBody Map<String, Long> payload) {
         Long txnId = payload.get("transactionId");
         Long receiptId = payload.get("receiptId");
@@ -123,7 +132,9 @@ public class ReconciliationController {
      * Marks an audit trail item as ignored/done without linking.
      */
     @PostMapping("/audit-trail/{id}/ignore")
-    public ResponseEntity<?> ignoreAuditItem(@PathVariable Long id) {
+    @Operation(summary = "Ignore Audit Item", description = "Mute or ignore an audit item without active code resolution.")
+    public ResponseEntity<?> ignoreAuditItem(
+            @Parameter(description = "Audit Item ID") @PathVariable Long id) {
         return auditTrailRepository.findById(id).map(entry -> {
             entry.setResolved(true);
             entry.setResolvedAt(LocalDateTime.now());
@@ -138,6 +149,7 @@ public class ReconciliationController {
      * Exports the audit trail as a CSV file download.
      */
     @GetMapping("/audit-trail/export")
+    @Operation(summary = "Export Audit Trail to CSV", description = "Downloads the complete audit log in comma-separated file format")
     public void exportAuditTrail(HttpServletResponse response) throws IOException {
         response.setContentType("text/csv");
         response.setHeader("Content-Disposition", "attachment; filename=audit_trail.csv");

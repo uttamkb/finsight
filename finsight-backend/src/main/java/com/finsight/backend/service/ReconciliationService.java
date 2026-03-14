@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -104,18 +105,24 @@ public class ReconciliationService {
                         matchType, bankTxn.getDescription(), bestMatch.getVendor(), String.format("%.1f", bestScore));
 
             } else if (bestScore >= SUGGESTED_MATCH_THRESHOLD && bestMatch != null) {
-                // Partial match — needs human review
-                createAuditEntry(bankTxn, bestMatch,
-                        AuditTrail.IssueType.SUGGESTED_MATCH,
-                        String.format("Suggested match (score: %.0f/100). Review required. Bank: '%s' | Receipt: '%s'",
-                                bestScore, bankTxn.getDescription(), bestMatch.getVendor()),
-                        bestScore, "SUGGESTED_MATCH");
+                // Partial match — needs human review. H1: idempotency guard
+                if (!auditTrailRepository.existsByTransactionIdAndIssueTypeAndResolvedFalse(
+                        bankTxn.getId(), AuditTrail.IssueType.SUGGESTED_MATCH)) {
+                    createAuditEntry(bankTxn, bestMatch,
+                            AuditTrail.IssueType.SUGGESTED_MATCH,
+                            String.format("Suggested match (score: %.0f/100). Review required. Bank: '%s' | Receipt: '%s'",
+                                    bestScore, bankTxn.getDescription(), bestMatch.getVendor()),
+                            bestScore, "SUGGESTED_MATCH");
+                }
             } else {
-                // No viable match found
-                createAuditEntry(bankTxn, null,
-                        AuditTrail.IssueType.UNMATCHED,
-                        "No matching receipt found for this bank transaction (score < 40).",
-                        bestScore, "NONE");
+                // No viable match found. H1: idempotency guard
+                if (!auditTrailRepository.existsByTransactionIdAndIssueTypeAndResolvedFalse(
+                        bankTxn.getId(), AuditTrail.IssueType.UNMATCHED)) {
+                    createAuditEntry(bankTxn, null,
+                            AuditTrail.IssueType.UNMATCHED,
+                            "No matching receipt found for this bank transaction (score < 40).",
+                            bestScore, "NONE");
+                }
             }
         }
 
@@ -141,14 +148,19 @@ public class ReconciliationService {
      * Vendor:  30 pts (similarity > 70%)
      * Date:    10 pts (within 3 days)
      */
-    private double computeScore(BankTransaction bankTxn, Receipt receipt) {
+    double computeScore(BankTransaction bankTxn, Receipt receipt) {
         double score = 0.0;
 
-        // --- 1. Amount Match (60 pts) ---
+        // --- 1. Amount Match (60 pts, tiered — H2) ---
         BigDecimal bankAmt    = bankTxn.getAmount();
-        BigDecimal receiptAmt = BigDecimal.valueOf(receipt.getAmount());
-        if (bankAmt.compareTo(receiptAmt) == 0) {
-            score += AMOUNT_WEIGHT;
+        BigDecimal receiptAmt = receipt.getAmount(); // now BigDecimal (C2 fix)
+        if (bankAmt != null && receiptAmt != null && bankAmt.compareTo(BigDecimal.ZERO) > 0) {
+            double pct = bankAmt.subtract(receiptAmt).abs()
+                             .divide(bankAmt, 4, RoundingMode.HALF_UP)
+                             .doubleValue();
+            if (pct == 0.0)       score += 60; // exact
+            else if (pct <= 0.02) score += 45; // within 2%
+            else if (pct <= 0.05) score += 25; // within 5%
         }
 
         // --- 2. Date Proximity (10 pts) ---
@@ -276,12 +288,8 @@ public class ReconciliationService {
         txn.setReconciled(true);
         bankTransactionRepository.save(txn);
 
-        // Resolve associated audit trails
-        List<AuditTrail> pendingAudits = auditTrailRepository.findByTenantId("local_tenant").stream()
-                .filter(a -> !Boolean.TRUE.equals(a.getResolved()))
-                .filter(a -> (a.getTransaction() != null && a.getTransaction().getId().equals(transactionId)) ||
-                             (a.getReceipt() != null && a.getReceipt().getId().equals(receiptId)))
-                .collect(Collectors.toList());
+        // H4 — Resolve associated audit trails using targeted DB query (no full table scan)
+        List<AuditTrail> pendingAudits = auditTrailRepository.findUnresolvedByTxnOrReceipt(transactionId, receiptId);
 
         for (AuditTrail audit : pendingAudits) {
             audit.setResolved(true);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Info, ShieldCheck, Database, Server, Smartphone, Layers, Workflow, CheckCircle2, Zap, LayoutDashboard, Cloud, Code2, Network, Cpu, HardDrive } from "lucide-react";
+import { Info, ShieldCheck, Database, Server, Smartphone, Layers, Workflow, CheckCircle2, Zap, LayoutDashboard, Cloud, Code2, Network, Cpu, HardDrive, BrainCircuit, ChevronRight } from "lucide-react";
 
 export default function SystemInformationPage() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -26,6 +26,7 @@ export default function SystemInformationPage() {
           { id: "schema", label: "Database Schema", icon: Database },
           { id: "tech-stack", label: "Technology Stack", icon: Layers },
           { id: "integrations", label: "Integrations", icon: Network },
+          { id: "training", label: "OCR Training", icon: BrainCircuit },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -58,8 +59,8 @@ export default function SystemInformationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
                 { title: "Automated Ingestion", desc: "Watch Google Drive folders for new expense receipts and invoices automatically.", icon: Cloud },
-                { title: "AI-Powered Parsing (2.0)", desc: "Extract vendor names, dates, amounts, and metadata from receipts using Gemini 2.0 Flash with robust raw-text fallback.", icon: Zap },
-                { title: "Bank Reconciliation", desc: "Correlate and verify bank statement line items against parsed receipt documents seamlessly.", icon: CheckCircle2 },
+                { title: "AI-Powered Parsing (3.0)", desc: "Extract vendor names, dates, amounts, and metadata using Gemini 3 Flash. Features a hybrid bank parser (pdfplumber + camelot) with Dynamic Column Detection.", icon: Zap },
+                { title: "Bank Reconciliation", desc: "Correlate bank line items against receipts using a 60-30-10 scoring system (Amount/Vendor/Date) with tiered tolerance.", icon: CheckCircle2 },
                 { title: "Vendor Intelligence", desc: "Aggregate transactions by vendor to identify spending patterns and top payees.", icon: LayoutDashboard },
                 { title: "Conflict Resolution", desc: "Audit trails automatically flag and queue mismatched amounts or missing records for manual review.", icon: ShieldCheck },
                 { title: "Multi-Tenancy", desc: "Data is segregated by `tenant_id` at the database level, allowing for secure multi-association management.", icon: Database },
@@ -111,7 +112,7 @@ export default function SystemInformationPage() {
                     <div className="bg-background p-2 rounded border">DriveSyncService</div>
                     <div className="bg-background p-2 rounded border">OcrService</div>
                     <div className="bg-background p-2 rounded border text-primary font-bold">API_BASE_URL</div>
-                    <div className="bg-background p-2 rounded border">Gemini 2.0 Parser</div>
+                    <div className="bg-background p-2 rounded border">Gemini 3 Parser</div>
                     <div className="bg-background p-2 rounded border text-indigo-500 font-bold underline decoration-indigo-500/30">SurveyEngine</div>
                   </div>
                 </div>
@@ -168,8 +169,8 @@ export default function SystemInformationPage() {
                       <div className="flex justify-between"><span>tenant_id</span> <span>TEXT NOT NULL</span></div>
                       <div className="flex justify-between"><span>drive_file_id</span> <span>TEXT UNIQUE</span></div>
                       <div className="flex justify-between"><span>file_name, vendor</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>amount, ocr_conf</span> <span>REAL</span></div>
-                      <div className="flex justify-between"><span>content_hash</span> <span className="text-emerald-500/70">TEXT (MD5)</span></div>
+                      <div className="flex justify-between"><span>amount, ocr_conf</span> <span className="text-blue-500/70">REAL (BigDecimal 15,2)</span></div>
+                      <div className="flex justify-between"><span>content_hash</span> <span className="text-emerald-500/70">TEXT (SHA-256 Dedup)</span></div>
                       <div className="flex justify-between"><span>google_drive_link</span> <span>TEXT (URL)</span></div>
                       <div className="flex justify-between"><span>category</span> <span>TEXT</span></div>
                       <div className="flex justify-between"><span>status</span> <span>TEXT (PENDING|PROCESSED..)</span></div>
@@ -195,12 +196,12 @@ export default function SystemInformationPage() {
                   <div className="border rounded-lg overflow-hidden">
                     <div className="bg-muted p-3 border-b font-mono font-bold text-sm">audit_trail</div>
                     <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
-                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
-                      <div className="flex justify-between"><span>transaction_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
-                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
+                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER (Indexed)</span></div>
+                      <div className="flex justify-between"><span>transaction_id</span> <span className="text-amber-500/70">FK INTEGER (Indexed)</span></div>
+                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-amber-500/70">FK INTEGER (Indexed)</span></div>
                       <div className="flex justify-between"><span>issue_type</span> <span>TEXT (MISMATCH)</span></div>
-                      <div className="flex justify-between"><span>similarity_score</span> <span>REAL</span></div>
-                      <div className="flex justify-between"><span>match_type</span> <span>TEXT (EXACT\|FUZZY)</span></div>
+                      <div className="flex justify-between"><span>similarity_score</span> <span>REAL (60-30-10 Logic)</span></div>
+                      <div className="flex justify-between"><span>match_type</span> <span>TEXT (AUTO|SUGGESTED)</span></div>
                       <div className="flex justify-between"><span>resolved</span> <span>INTEGER (0/1)</span></div>
                     </div>
                   </div>
@@ -329,9 +330,9 @@ export default function SystemInformationPage() {
                 <div className="space-y-6 pt-4">
                   {[
                     { step: "1", title: "Drive & Sheets Ingestion", desc: "DriveSyncService and GoogleSheetsSyncService poll Google Workspace for new expense receipts and resident survey responses." },
-                    { step: "2", title: "OCR & Form Mapping", desc: "OcrService extracts receipt data, while the Survey Engine maps Sheet columns to structured Turso database responses." },
-                    { step: "3", title: "Gemini 2.0 Analysis & Insights", desc: "Bank statement categorization and Resident sentiment/recommendation generation via Gemini 2.0 Flash (latest)." },
-                    { step: "4", title: "Financial Reconciliation", desc: "ReconciliationService correlates transactions against receipts with automatic tie-ins and MD5-based duplicate detection." }
+                    { step: "2", title: "OCR & Hybrid Parsing", desc: "OcrService extracts receipt data. Bank statements follow a Hybrid Pipeline (Table Extraction -> Fallback -> Gemini) with Dynamic Column Detection." },
+                    { step: "3", title: "Gemini 3 & Resident Insights", desc: "Bank statement categorization and Resident sentiment generation. Gemini acts as an intelligent fallback for malformed table data." },
+                    { step: "4", title: "Financial Reconciliation", desc: "ReconciliationService uses a 60-30-10 scoring logic with tiered BigDecimal precision and SHA-256 deduplication." }
                   ].map((pipe, i) => (
                     <div key={i} className="flex gap-4 p-4 border rounded-xl bg-background relative overflow-hidden group hover:border-primary/50 transition-colors">
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors"></div>
@@ -363,14 +364,42 @@ export default function SystemInformationPage() {
                 <div className="p-6 rounded-2xl border bg-card shadow-sm relative overflow-hidden">
                   <div className="absolute right-0 top-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
                   <Code2 className="h-8 w-8 text-blue-500 mb-4 relative z-10" />
-                  <h3 className="text-lg font-bold mb-2">Google Gemini 2.0 Flash</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Employed for unstructured data classification and robust receipt parsing. Converts malformed response chunks into structured financial records via a Java-side Regex fallback engine.</p>
-                  <div className="text-xs font-mono bg-muted p-2 rounded">API Model: gemini-2.0-flash</div>
+                   <h3 className="text-lg font-bold mb-2">Google Gemini 3 Series</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Master categorization engine and anomaly detection. Acts as a high-confidence fallback in the Bank Statement Hybrid Parser when table extraction yield is low (&lt; 80%).</p>
+                  <div className="text-xs font-mono bg-muted p-2 rounded">API Models: gemini-3-flash-preview, gemini-3.1-pro-preview</div>
                 </div>
              </div>
            </div>
         )}
 
+        {activeTab === "training" && (
+          <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="p-6 rounded-2xl border bg-card shadow-sm">
+               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                 <BrainCircuit className="h-5 w-5 text-indigo-500" />
+                 OCR Training & Fine-tuning
+               </h2>
+               <p className="text-muted-foreground mb-6">
+                 FinSight allows you to improve the local OCR model's accuracy by training it on your specific receipt patterns. 
+                 This "Human-in-the-loop" system converts your manual corrections into training data.
+               </p>
+               
+               <div className="bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-2xl p-10 text-center">
+                  <Cpu className="h-12 w-12 text-indigo-500/50 mx-auto mb-4" />
+                  <h3 className="text-lg font-bold">Launch Training Center</h3>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+                    Manage harvested golden samples, prepare datasets, and monitor the fine-tuning pipeline.
+                  </p>
+                  <a 
+                    href="/system-information/training"
+                    className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+                  >
+                    Go to Training Dashboard <ChevronRight className="h-4 w-4" />
+                  </a>
+               </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

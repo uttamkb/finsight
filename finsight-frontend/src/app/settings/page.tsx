@@ -5,7 +5,7 @@ import { Settings as SettingsIcon, Save, Key, Globe, Layout, Check, AlertCircle,
 import { useTheme } from "next-themes";
 import { useToast } from "@/components/toast-provider";
 import { useRef } from "react";
-import { API_BASE_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api";
 
 interface AppConfig {
   apartmentName: string;
@@ -39,7 +39,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/settings`)
+    apiFetch("/settings")
       .then((res) => res.json())
       .then((data) => {
         // Ensure currency has a default value if missing from the DB
@@ -59,7 +59,7 @@ export default function SettingsPage() {
       });
 
     // Fetch last sync history
-    fetch(`${API_BASE_URL}/sync/history`)
+    apiFetch("/sync/history")
       .then(res => res.json())
       .then(data => {
         if (data.lastSync) {
@@ -72,7 +72,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/settings`, {
+      const response = await apiFetch("/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
@@ -94,7 +94,7 @@ export default function SettingsPage() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/backup/export`);
+      const response = await apiFetch("/backup/export");
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -129,7 +129,7 @@ export default function SettingsPage() {
       const text = await file.text();
       const backupData = JSON.parse(text);
 
-      const response = await fetch(`${API_BASE_URL}/backup/import`, {
+      const response = await apiFetch("/backup/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(backupData),
@@ -157,7 +157,7 @@ export default function SettingsPage() {
 
     setIsResetting(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/backup/reset`, { method: "POST" });
+      const response = await apiFetch("/backup/reset", { method: "POST" });
       if (response.ok) {
         toast("Database reset successfully. Starting fresh.");
         window.location.reload();

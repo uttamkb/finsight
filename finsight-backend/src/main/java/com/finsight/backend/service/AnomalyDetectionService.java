@@ -27,7 +27,7 @@ import java.util.List;
 public class AnomalyDetectionService {
 
     private static final Logger log = LoggerFactory.getLogger(AnomalyDetectionService.class);
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=";
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent";
 
     private final BankTransactionRepository bankTransactionRepository;
     private final ForensicAnomalyRepository forensicAnomalyRepository;
@@ -116,8 +116,9 @@ public class AnomalyDetectionService {
                 """, escapeJson(ANOMALY_PROMPT), escapeJson(txnsJson));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(GEMINI_API_URL + apiKey))
+                    .uri(URI.create(GEMINI_API_URL))
                     .header("Content-Type", "application/json")
+                    .header("x-goog-api-key", apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
 

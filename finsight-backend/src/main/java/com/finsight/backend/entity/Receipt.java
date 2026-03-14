@@ -2,6 +2,7 @@ package com.finsight.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -26,8 +27,8 @@ public class Receipt {
     @Column(name = "vendor")
     private String vendor;
 
-    @Column(name = "amount")
-    private Double amount;
+    @Column(name = "amount", precision = 15, scale = 2)
+    private BigDecimal amount;
 
     @Column(name = "date")
     private LocalDate date;
@@ -99,11 +100,11 @@ public class Receipt {
         this.vendor = vendor;
     }
 
-    public Double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 

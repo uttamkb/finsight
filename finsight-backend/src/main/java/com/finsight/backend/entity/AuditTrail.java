@@ -6,8 +6,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "audit_trail", indexes = {
-    @Index(name = "idx_audit_tenant", columnList = "tenant_id"),
-    @Index(name = "idx_audit_resolved", columnList = "resolved")
+    @Index(name = "idx_audit_tenant",     columnList = "tenant_id"),
+    @Index(name = "idx_audit_resolved",   columnList = "resolved"),
+    @Index(name = "idx_audit_txn_id",     columnList = "transaction_id"),
+    @Index(name = "idx_audit_receipt_id", columnList = "receipt_id")
 })
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class AuditTrail {
