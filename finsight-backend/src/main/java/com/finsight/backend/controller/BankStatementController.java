@@ -83,6 +83,22 @@ public class BankStatementController {
         return ResponseEntity.ok(transactions);
     }
 
+    @PutMapping("/transactions/{id}")
+    @Operation(summary = "Edit Bank Transaction", description = "Updates fields of an existing parsed bank transaction (e.g., amount, vendor, date) in case of AI extraction errors.")
+    public ResponseEntity<BankTransactionDto> updateTransaction(
+            @Parameter(description = "Transaction ID") @PathVariable Long id,
+            @RequestBody BankTransactionDto updatedDto) {
+        try {
+            BankTransactionDto savedTxn = bankStatementService.updateTransaction(id, updatedDto);
+            return ResponseEntity.ok(savedTxn);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            log.error("Error updating transaction {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @PostMapping("/reconcile")
     @Operation(summary = "Trigger Auto-Reconciliation", description = "Manually triggers the auto-reconciliation engine to link unlinked transactions with receipts.")
     public ResponseEntity<?> triggerManualReconciliation() {

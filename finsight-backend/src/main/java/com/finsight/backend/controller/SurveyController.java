@@ -46,11 +46,19 @@ public class SurveyController {
     }
 
     @PostMapping("/create")
-    @Operation(summary = "Create Quarterly Survey", description = "Generates a new Google Form targeted at vendor feedback for current tenant context.")
+    @Operation(summary = "Create Quarterly Survey", description = "Generates a new Google Form targeted at vendor feedback for current tenant context. Automatically archives previous active surveys.")
     public Survey createSurvey(
             @Parameter(description = "Tenant ID") @RequestParam String tenantId, 
             @Parameter(description = "Financial quarter, e.g., Q1") @RequestParam String quarter, 
             @Parameter(description = "Current year") @RequestParam int year) throws Exception {
+        
+        // Archive existing active surveys for this tenant
+        surveyRepository.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, "ACTIVE")
+                .forEach(s -> {
+                    s.setStatus("ARCHIVED");
+                    surveyRepository.save(s);
+                });
+
         return formsService.createQuarterlySurvey(tenantId, quarter, year);
     }
 
@@ -83,6 +91,7 @@ public class SurveyController {
     public Map<String, Object> getDashboardData(@RequestParam Long surveyId) {
         Map<String, Object> data = analyticsService.getAggregatedResults(surveyId);
         data.put("insights", insightRepository.findBySurveyId(surveyId));
+        surveyRepository.findById(surveyId).ifPresent(s -> data.put("executiveSummary", s.getExecutiveSummary()));
         return data;
     }
 }

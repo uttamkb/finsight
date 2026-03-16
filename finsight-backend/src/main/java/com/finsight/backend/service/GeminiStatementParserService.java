@@ -5,338 +5,365 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.finsight.backend.dto.GeminiBankStatementResponse;
 import com.finsight.backend.dto.ParsedBankTransactionDto;
 import com.finsight.backend.entity.AppConfig;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.ByteArrayOutputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.time.Duration;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
-import java.io.InputStreamReader;
-import java.io.ByteArrayOutputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.pdmodel.PDDocument;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
+/**
+ * Hybrid PDF statement parser.
+ *
+ * <p>Detection strategy:
+ * <ul>
+ *   <li><b>Digital PDF</b> (text-based): PDFTextStripper extracts raw text → sent to Gemini as
+ *       plain text. Fast, tiny payloads, works for 90%+ of bank statements.</li>
+ *   <li><b>Scanned PDF</b> (image-based): each page rendered to PNG via PDFRenderer → sent to
+ *       Gemini as inline_data image. Handles any scan quality.</li>
+ * </ul>
+ */
 @Service
 public class GeminiStatementParserService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiStatementParserService.class);
-    // Upgraded to gemini-3-flash-preview for faster, cheaper, and structured extraction
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
+
+    // Ensure AWT runs headless (required for PDFRenderer on server)
+    static {
+        System.setProperty("java.awt.headless", "true");
+    }
+
+    /** Minimum avg chars/page to classify a PDF as digital (not scanned). */
+    private static final int DIGITAL_CHARS_PER_PAGE_THRESHOLD = 100;
+
+    /** Characters per text chunk sent to Gemini for digital PDFs. */
+    private static final int TEXT_CHUNK_SIZE = 6000;
+
+    /** DPI for rendering scanned PDF pages to images. 150 DPI ≈ 200-500 KB/page PNG. */
+    private static final int RENDER_DPI = 150;
+
+    /** Pages per chunk for the scanned (binary PDF) path. */
+    private static final int PAGES_PER_CHUNK = 2;
+
+    /** Max concurrent Gemini API calls — free tier supports 15 req/min. */
+    private static final int MAX_CONCURRENT_GEMINI_CALLS = 5;
 
     private final AppConfigService appConfigService;
-    private final HttpClient httpClient;
+    private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper;
 
-    // Improved prompt with Counterparty Intelligence
-    private static final String PARSING_PROMPT = """
+    // ── Prompts ─────────────────────────────────────────────────────────────
+
+    private static final String PROMPT_TEXT = """
         You are a highly accurate financial data extraction assistant.
-        I am providing you with a chunk of a bank statement PDF.
-        Please extract all transaction line items from this document.
+        The following is plain text extracted from a digital bank statement PDF.
+        Extract every transaction line item.
 
         EXTRACTION RULES:
-        1. Each table row represents a transaction.
-        2. If Withdrawal (Dr) has a value -> type = "DEBIT".
-        3. If Deposit (Cr) has a value -> type = "CREDIT".
-        4. Remove commas and currency symbols from numeric values.
-        5. Convert dates to ISO format: YYYY-MM-DD.
-        6. Ignore headers, totals, and non-transaction rows.
+        1. If Withdrawal (Dr) column has a value → type = "DEBIT".
+        2. If Deposit (Cr) column has a value → type = "CREDIT".
+        3. Remove commas and currency symbols from numeric values.
+        4. Convert dates to ISO format: YYYY-MM-DD.
+        5. Ignore headers, totals, opening/closing balance rows, and non-transaction rows.
 
-        COUNTERPARTY EXTRACTION RULES:
-        1. The "Remarks" or "Description" column contains the counterparty/narration.
-        2. If type = CREDIT:
-           - counterparty = the sender or payer name.
-           - Example: "UPI/JohnDoe/HDFC BANK" -> counterparty = "JohnDoe"
-        3. If type = DEBIT:
-           - counterparty = merchant or vendor name.
-           - Example: "UPI/Swiggy/HDFC BANK" -> counterparty = "Swiggy"
-        4. Remove bank names and transaction channel prefixes such as: UPI, IMPS, NEFT, POS, CARD, HDFC BANK, ICICI BANK, etc.
-        5. The vendor/counterparty should be a clean human or merchant name.
+        COUNTERPARTY RULES:
+        1. Extract clean merchant/person name from the Remarks/Description column.
+        2. Remove prefixes like UPI, IMPS, NEFT, POS, CARD and bank names.
 
-        Return the data strictly as a JSON object matching this schema:
+        Return ONLY a JSON object matching this schema — no markdown, no extra text:
         {
           "transactions": [
             {
               "txDate": "YYYY-MM-DD",
-              "description": "Original narration",
-              "vendor": "Cleaned merchant/person name",
+              "description": "original narration",
+              "vendor": "cleaned merchant name",
               "type": "DEBIT|CREDIT",
-              "amount": number,
-              "category": "string"
+              "amount": 0.00,
+              "category": ""
             }
           ]
         }
-        Do not include any other text or markdown formatting.
         """;
 
-    private static final int PAGES_PER_CHUNK = 2;
+    private static final String PROMPT_IMAGE = """
+        You are a highly accurate financial data extraction assistant.
+        I am providing you with a rendered page image from a bank statement.
+        Extract every transaction visible in this image.
 
-    public GeminiStatementParserService(AppConfigService appConfigService) {
+        EXTRACTION RULES:
+        1. If Withdrawal (Dr) column has a value → type = "DEBIT".
+        2. If Deposit (Cr) column has a value → type = "CREDIT".
+        3. Remove commas and currency symbols from numeric values.
+        4. Convert dates to ISO format: YYYY-MM-DD.
+        5. Ignore headers, totals, opening/closing balance rows, and non-transaction rows.
+
+        COUNTERPARTY RULES:
+        1. Extract clean merchant/person name from the Remarks/Description column.
+        2. Remove prefixes like UPI, IMPS, NEFT, POS, CARD and bank names.
+
+        Return ONLY a JSON object matching this schema — no markdown, no extra text:
+        {
+          "transactions": [
+            {
+              "txDate": "YYYY-MM-DD",
+              "description": "original narration",
+              "vendor": "cleaned merchant name",
+              "type": "DEBIT|CREDIT",
+              "amount": 0.00,
+              "category": ""
+            }
+          ]
+        }
+        """;
+
+    // ── Constructor ──────────────────────────────────────────────────────────
+
+    public GeminiStatementParserService(AppConfigService appConfigService, GeminiClient geminiClient) {
         this.appConfigService = appConfigService;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
+        this.geminiClient = geminiClient;
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
-    public List<ParsedBankTransactionDto> parsePdfStatement(MultipartFile file) throws Exception {
+    // ── Public entry points ──────────────────────────────────────────────────
+
+    public List<ParsedBankTransactionDto> parsePdfStatement(File file) throws Exception {
         AppConfig config = appConfigService.getConfig();
-        String ocrMode = config.getOcrMode() != null ? config.getOcrMode() : "MODE_HYBRID";
-        log.info("Starting PDF Statement Parse. File: {}, Mode: {}", file.getOriginalFilename(), ocrMode);
+        String apiKey = config.getGeminiApiKey();
+        String mode = config.getOcrMode();
+        log.info("Starting PDF Statement Parse. File: {}, Mode: {}", file.getName(), mode);
 
-        File tempFile = null;
         try {
-            if ("MODE_HIGH_ACCURACY".equals(ocrMode)) {
-                return extractWithGemini(file, config.getGeminiApiKey());
+            if ("MODE_HIGH_ACCURACY".equals(mode)) {
+                return extractWithGemini(file, apiKey);
             }
 
-            // For Low Cost or Hybrid, try local extraction first
-            File tempDir = new File(System.getProperty("user.dir"), "target");
-            if (!tempDir.exists()) {
-                tempDir.mkdirs();
-            }
-            if (tempDir.exists() && tempDir.canWrite()) {
-                tempFile = File.createTempFile("stmt_", ".pdf", tempDir);
-            } else {
-                tempFile = File.createTempFile("stmt_", ".pdf");
-            }
+            // Local extraction attempt (MODE_LOW_COST or MODE_HYBRID)
+            try {
+                GeminiBankStatementResponse localResult = extractLocally(file);
+                double confidence = localResult.getConfidenceScore();
 
-            file.transferTo(tempFile);
+                if ("MODE_LOW_COST".equals(mode)) {
+                    log.info("Low Cost Mode: Using local results regardless of confidence.");
+                    return localResult.getTransactions() != null ? localResult.getTransactions() : new ArrayList<>();
+                }
 
-            GeminiBankStatementResponse localResponse = extractLocally(tempFile);
-            List<ParsedBankTransactionDto> localResult = localResponse.getTransactions() != null ? localResponse.getTransactions() : new ArrayList<>();
-            double confidence = localResponse.getConfidenceScore();
-
-            log.info("Local extraction confidence: {}%", confidence);
-
-            if ("MODE_LOW_COST".equals(ocrMode)) {
-                log.info("Low Cost Mode: Using local results regardless of confidence.");
-                return localResult;
-            }
-
-            // Mode is HYBRID
-            if (localResult.isEmpty() || confidence < 70) {
+                // Hybrid: fall back to Gemini if confidence is low or no transactions found
+                if (confidence >= 70.0 && localResult.getTransactions() != null && !localResult.getTransactions().isEmpty()) {
+                    log.info("Hybrid Mode: Local extraction successful with {}% confidence ({} txns).",
+                            confidence, localResult.getTransactions().size());
+                    return localResult.getTransactions();
+                }
                 log.info("Confidence ({}%) < 70% or 0 transactions. Falling back to Gemini AI Parser...", confidence);
-                return extractWithGemini(file, config.getGeminiApiKey());
-            } else {
-                log.info("Hybrid Mode: Local extraction successful with {}% confidence ({} txns).", confidence, localResult.size());
-                return localResult;
+
+            } catch (Exception e) {
+                log.info("Hybrid Mode: Local extraction failed. Falling back to Gemini...");
+                if ("MODE_LOW_COST".equals(mode)) throw e;
             }
+
+            return extractWithGemini(file, apiKey);
 
         } catch (Exception e) {
             log.error("Error during statement extraction: {}", e.getMessage(), e);
-            if ("MODE_HYBRID".equals(ocrMode)) {
-                log.info("Hybrid Mode: Local extraction failed. Falling back to Gemini...");
-                return extractWithGemini(file, config.getGeminiApiKey());
-            }
-            throw e;
-        } finally {
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-            }
+            throw new IOException(e);
         }
     }
 
-    GeminiBankStatementResponse extractLocally(File tempFile) throws Exception {
-        String scriptPath = System.getenv("STATEMENT_SCRIPT_PATH") != null ? System.getenv("STATEMENT_SCRIPT_PATH") : "src/main/resources/scripts/statement_processor.py";
-        String pythonPath = System.getenv("PYTHON_EXECUTABLE") != null ? System.getenv("PYTHON_EXECUTABLE") : "src/main/resources/scripts/venv/bin/python3";
+    GeminiBankStatementResponse extractLocally(File file) throws Exception {
+        String scriptPath = System.getenv("PDF_PARSE_SCRIPT_PATH") != null
+                ? System.getenv("PDF_PARSE_SCRIPT_PATH")
+                : "src/main/resources/scripts/parse_statement.py";
+        String pythonPath = System.getenv("PYTHON_EXECUTABLE") != null
+                ? System.getenv("PYTHON_EXECUTABLE")
+                : "src/main/resources/scripts/venv/bin/python3";
 
-        if (!new File(scriptPath).exists()) {
-            throw new RuntimeException("Local parsing script missing: " + scriptPath);
-        }
-
-        ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, tempFile.getAbsolutePath());
+        log.info("Attempting local extraction for {} using Python script...", file.getName());
+        ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, file.getAbsolutePath());
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         StringBuilder output = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            output.append(line).append("\n");
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) output.append(line).append("\n");
         }
 
         boolean finished = process.waitFor(120, java.util.concurrent.TimeUnit.SECONDS);
         if (!finished) {
             process.destroyForcibly();
-            throw new RuntimeException("Local Statement Parsing completely timed out.");
+            throw new RuntimeException("Local PDF parse script timed out after 120s.");
         }
 
-        if (process.exitValue() != 0) {
-            throw new RuntimeException("Local Statement Parsing failed: " + output.toString());
-        }
-
-        String jsonOutput = output.toString();
         try {
-            int startIndex = jsonOutput.indexOf("{");
-            int endIndex = jsonOutput.lastIndexOf("}");
-            if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
-                String cleanJson = jsonOutput.substring(startIndex, endIndex + 1);
-                GeminiBankStatementResponse response = objectMapper.readValue(cleanJson, GeminiBankStatementResponse.class);
-                if (response.getError() != null && !response.getError().isEmpty()) {
-                    throw new RuntimeException("Python script error: " + response.getError());
-                }
-                if (response.getDebug() != null) {
-                    response.getDebug().forEach(msg -> log.info("[Python Debug] {}", msg));
-                }
-                return response;
-            } else {
-                return new GeminiBankStatementResponse();
-            }
+            return objectMapper.readValue(output.toString(), GeminiBankStatementResponse.class);
         } catch (Exception e) {
             log.warn("Failed to parse output from local python script: {}", e.getMessage(), e);
             throw new RuntimeException("JSON parsing error from local script.", e);
         }
     }
 
-    List<ParsedBankTransactionDto> extractWithGemini(MultipartFile file, String apiKey) throws Exception {
+    // ── Hybrid Gemini extraction ─────────────────────────────────────────────
+
+    /**
+     * Detects whether the PDF is digital or scanned, then routes to the appropriate path.
+     */
+    List<ParsedBankTransactionDto> extractWithGemini(File file, String apiKey) throws Exception {
         if (apiKey == null || apiKey.trim().isEmpty() || apiKey.equals("your_gemini_api_key_here")) {
             throw new IllegalStateException("Gemini API Key is missing. Cannot perform AI extraction.");
         }
 
-        List<ParsedBankTransactionDto> allTransactions = new ArrayList<>();
-        
-        try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(file.getBytes())) {
+        try (PDDocument document = Loader.loadPDF(file)) {
             int pageCount = document.getNumberOfPages();
-            log.info("PDF has {} pages. Processing in chunks of {} pages.", pageCount, PAGES_PER_CHUNK);
+            boolean isDigital = isDigitalPdf(document);
 
-            for (int i = 0; i < pageCount; i += PAGES_PER_CHUNK) {
-                int end = Math.min(i + PAGES_PER_CHUNK, pageCount);
-                log.info("Processing chunk: pages {} to {}", i + 1, end);
-                
-                try (org.apache.pdfbox.pdmodel.PDDocument chunk = new org.apache.pdfbox.pdmodel.PDDocument()) {
-                    for (int j = i; j < end; j++) {
-                        chunk.addPage(document.getPage(j));
-                    }
-                    
-                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                    chunk.save(baos);
-                    byte[] chunkBytes = baos.toByteArray();
-                    
-                    List<ParsedBankTransactionDto> chunkResult = callGeminiForChunk(chunkBytes, apiKey);
-                    if (chunkResult != null) {
-                        allTransactions.addAll(chunkResult);
-                    }
-                }
+            log.info("PDF type detection: {} ({} pages) → {}",
+                    file.getName(), pageCount, isDigital ? "DIGITAL (text)" : "SCANNED (image)");
+
+            if (isDigital) {
+                return extractFromDigitalPdf(document, apiKey);
+            } else {
+                return extractFromScannedPdf(document, apiKey);
             }
         }
-
-        log.info("Successfully extracted {} transactions across all chunks.", allTransactions.size());
-        return allTransactions;
     }
 
-    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000, multiplier = 2))
+    // ── Detection ────────────────────────────────────────────────────────────
+
+    /**
+     * Samples the first 3 pages of the PDF using PDFTextStripper.
+     * If average chars/page > threshold → digital; otherwise → scanned.
+     */
+    private boolean isDigitalPdf(PDDocument document) {
+        try {
+            PDFTextStripper stripper = new PDFTextStripper();
+            int samplePages = Math.min(3, document.getNumberOfPages());
+            stripper.setStartPage(1);
+            stripper.setEndPage(samplePages);
+            String text = stripper.getText(document);
+            double avgCharsPerPage = (double) text.trim().length() / samplePages;
+            log.debug("PDF text sample: {:.0f} avg chars/page (threshold={})", avgCharsPerPage, DIGITAL_CHARS_PER_PAGE_THRESHOLD);
+            return avgCharsPerPage > DIGITAL_CHARS_PER_PAGE_THRESHOLD;
+        } catch (Exception e) {
+            log.warn("PDF type detection failed, defaulting to scanned path: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // ── Digital path: text extraction ────────────────────────────────────────
+
+    /**
+     * Extracts full text from the PDF, chunks it, and sends each chunk to Gemini as plain text.
+     * Payloads are tiny (~5KB each), making this very fast and cheap.
+     */
+    private List<ParsedBankTransactionDto> extractFromDigitalPdf(PDDocument document, String apiKey) throws Exception {
+        PDFTextStripper stripper = new PDFTextStripper();
+        String fullText = stripper.getText(document);
+
+        List<String> textChunks = splitTextIntoChunks(fullText, TEXT_CHUNK_SIZE);
+        log.info("Digital PDF: extracted {} chars → {} text chunks.", fullText.length(), textChunks.size());
+
+        return dispatchChunksToGemini(textChunks.stream()
+                .map(chunk -> (java.util.function.Supplier<List<ParsedBankTransactionDto>>) () -> {
+                    try {
+                        return geminiClient.callGeminiWithText(chunk, PROMPT_TEXT, apiKey);
+                    } catch (Exception e) {
+                        log.error("Text chunk failed after retries: {}", e.getMessage(), e);
+                        return new ArrayList<>();
+                    }
+                })
+                .collect(Collectors.toList()));
+    }
+
+    /**
+     * Splits text into chunks of at most {@code maxChars}, preferring to break at newline
+     * boundaries to avoid cutting a transaction row in half.
+     */
+    private List<String> splitTextIntoChunks(String text, int maxChars) {
+        List<String> chunks = new ArrayList<>();
+        String[] lines = text.split("\n");
+        StringBuilder current = new StringBuilder();
+
+        for (String line : lines) {
+            if (current.length() + line.length() + 1 > maxChars && current.length() > 0) {
+                chunks.add(current.toString().trim());
+                current = new StringBuilder();
+            }
+            current.append(line).append("\n");
+        }
+        if (current.length() > 0) {
+            chunks.add(current.toString().trim());
+        }
+        return chunks;
+    }
+
+    // ── Scanned path: image rendering ────────────────────────────────────────
+
+    /**
+     * Renders each page of the PDF to a PNG image at 150 DPI and sends each image to Gemini.
+     * Works for any scan quality. Typical payload: ~300-800 KB per page.
+     */
+    private List<ParsedBankTransactionDto> extractFromScannedPdf(PDDocument document, String apiKey) throws Exception {
+        PDFRenderer renderer = new PDFRenderer(document);
+        int pageCount = document.getNumberOfPages();
+        List<byte[]> pageImages = new ArrayList<>();
+
+        log.info("Scanned PDF: rendering {} pages at {} DPI...", pageCount, RENDER_DPI);
+        for (int i = 0; i < pageCount; i++) {
+            BufferedImage image = renderer.renderImageWithDPI(i, RENDER_DPI, ImageType.RGB);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "PNG", baos);
+            byte[] imgBytes = baos.toByteArray();
+            log.debug("  Page {} rendered: {} KB", i + 1, imgBytes.length / 1024);
+            pageImages.add(imgBytes);
+        }
+
+        log.info("Scanned PDF: dispatching {} pages to Gemini.", pageImages.size());
+        return dispatchChunksToGemini(pageImages.stream()
+                .map(imgBytes -> (java.util.function.Supplier<List<ParsedBankTransactionDto>>) () -> {
+                    try {
+                        return geminiClient.callGeminiWithImage(imgBytes, PROMPT_IMAGE, apiKey);
+                    } catch (Exception e) {
+                        log.error("Image page failed after retries: {}", e.getMessage(), e);
+                        return new ArrayList<>();
+                    }
+                })
+                .collect(Collectors.toList()));
+    }
+
+    // ── Rate-limited parallel dispatch ───────────────────────────────────────
+
+    private List<ParsedBankTransactionDto> dispatchChunksToGemini(
+            List<java.util.function.Supplier<List<ParsedBankTransactionDto>>> tasks) throws Exception {
+
+        ExecutorService pool = Executors.newFixedThreadPool(MAX_CONCURRENT_GEMINI_CALLS);
+        List<CompletableFuture<List<ParsedBankTransactionDto>>> futures = tasks.stream()
+                .map(task -> CompletableFuture.supplyAsync(task, pool))
+                .collect(Collectors.toList());
+
+        try {
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .thenApply(v -> futures.stream()
+                            .flatMap(f -> f.join().stream())
+                            .collect(Collectors.toList()))
+                    .get();
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    // kept for test compatibility — delegates to geminiClient
     protected List<ParsedBankTransactionDto> callGeminiForChunk(byte[] pdfBytes, String apiKey) throws Exception {
-        // Step 1: Upload via Gemini File API
-        String fileUri = uploadChunkToGemini(pdfBytes, apiKey);
-
-        // Step 2: Use fileUri in Generation Request
-        String requestBody = String.format("""
-            {
-              "contents": [{
-                "parts": [
-                  {"text": "%s"},
-                  {
-                    "file_data": {
-                      "mime_type": "application/pdf",
-                      "file_uri": "%s"
-                    }
-                  }
-                ]
-              }],
-              "generationConfig": {
-                "temperature": 0.1,
-                "responseMimeType": "application/json"
-              }
-            }
-            """, escapeJson(PARSING_PROMPT), fileUri);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GEMINI_API_URL))
-                .header("Content-Type", "application/json")
-                .header("Connection", "close")
-                .header("x-goog-api-key", apiKey)
-                .timeout(Duration.ofMinutes(3))
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) {
-            log.error("Gemini API Error: Status={}, Body={}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to extract data via Gemini API. HTTP " + response.statusCode());
-        }
-
-        var rootNode = objectMapper.readTree(response.body());
-        String jsonTextContent = rootNode
-                .path("candidates").get(0)
-                .path("content").path("parts").get(0)
-                .path("text").asText();
-
-        String cleanText = jsonTextContent.trim();
-        int firstBrace = cleanText.indexOf('{');
-        int lastBrace = cleanText.lastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace) {
-            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-        }
-
-        GeminiBankStatementResponse result = objectMapper.readValue(cleanText, GeminiBankStatementResponse.class);
-        return result.getTransactions() != null ? result.getTransactions() : new ArrayList<>();
-    }
-
-    private String uploadChunkToGemini(byte[] pdfBytes, String apiKey) throws Exception {
-        String uploadUrl = "https://generativelanguage.googleapis.com/upload/v1beta/files?key=" + apiKey;
-        
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(uploadUrl))
-                .header("X-Goog-Upload-Protocol", "raw")
-                .header("X-Goog-Upload-Command", "start, upload, finalize")
-                .header("X-Goog-Upload-Header-Content-Length", String.valueOf(pdfBytes.length))
-                .header("X-Goog-Upload-Header-Content-Type", "application/pdf")
-                .header("Content-Type", "application/pdf")
-                .header("Connection", "close")
-                .timeout(Duration.ofMinutes(3))
-                .POST(HttpRequest.BodyPublishers.ofByteArray(pdfBytes))
-                .build();
-                
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        
-        if (response.statusCode() != 200) {
-            log.error("Gemini Upload API Error: Status={}, Body={}", response.statusCode(), response.body());
-            throw new RuntimeException("Failed to upload chunk via Gemini API. HTTP " + response.statusCode());
-        }
-        
-        var uploadNode = objectMapper.readTree(response.body());
-        return uploadNode.path("file").path("uri").asText();
-    }
-
-    private String escapeJson(String text) {
-        return text.replace("\"", "\\\"").replace("\n", "\\n");
+        return geminiClient.callGeminiWithImage(pdfBytes, PROMPT_IMAGE, apiKey);
     }
 }

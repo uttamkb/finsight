@@ -32,6 +32,7 @@ public class BankTransactionDto {
         public Long id;
         public String name;
         public String type;
+        public String parentName;
 
         public static CategoryDto from(Category c) {
             if (c == null) return null;
@@ -39,6 +40,9 @@ public class BankTransactionDto {
             dto.id = c.getId();
             dto.name = c.getName();
             dto.type = c.getType() != null ? c.getType().name() : null;
+            if (c.getParentCategory() != null) {
+                dto.parentName = c.getParentCategory().getName();
+            }
             return dto;
         }
     }
@@ -76,17 +80,40 @@ public class BankTransactionDto {
         return dto;
     }
 
-    // Getters
+    // Getters and Setters
     public Long getId()                  { return id; }
+    public void setId(Long id)           { this.id = id; }
+    
     public String getTenantId()          { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+    
     public LocalDate getTxDate()         { return txDate; }
+    public void setTxDate(LocalDate txDate) { this.txDate = txDate; }
+    
     public String getDescription()       { return description; }
+    public void setDescription(String description) { this.description = description; }
+    
     public String getVendor()            { return vendor; }
+    public void setVendor(String vendor) { this.vendor = vendor; }
+    
     public String getType()              { return type; }
+    public void setType(String type)     { this.type = type; }
+    
     public BigDecimal getAmount()        { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    
     public Boolean getReconciled()       { return reconciled; }
+    public void setReconciled(Boolean reconciled) { this.reconciled = reconciled; }
+    
     public String getReferenceNumber()   { return referenceNumber; }
+    public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
+    
     public LocalDateTime getCreatedAt()  { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
     public CategoryDto getCategory()     { return category; }
+    public void setCategory(CategoryDto category) { this.category = category; }
+    
     public ReceiptDto getReceipt()       { return receipt; }
+    public void setReceipt(ReceiptDto receipt) { this.receipt = receipt; }
 }

@@ -1,5 +1,6 @@
 package com.finsight.backend.service;
 
+import com.finsight.backend.dto.CategoryInsightDto;
 import com.finsight.backend.dto.DashboardStatsDto;
 import com.finsight.backend.dto.MonthlySummaryDto;
 import com.finsight.backend.dto.ProjectionDto;
@@ -40,21 +41,61 @@ public class DashboardService {
         LocalDate firstDayOfMonth = now.with(TemporalAdjusters.firstDayOfMonth());
         LocalDate lastDayOfMonth = now.with(TemporalAdjusters.lastDayOfMonth());
 
+        // Check if current month has data
         BigDecimal monthIncome = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
                 tenantId, BankTransaction.TransactionType.CREDIT, firstDayOfMonth, lastDayOfMonth);
         BigDecimal monthExpense = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
                 tenantId, BankTransaction.TransactionType.DEBIT, firstDayOfMonth, lastDayOfMonth);
 
+        // Fallback: If current month is empty, use the most recent available transaction month
+        if ((monthIncome == null || monthIncome.compareTo(BigDecimal.ZERO) == 0) &&
+            (monthExpense == null || monthExpense.compareTo(BigDecimal.ZERO) == 0)) {
+            
+            List<BankTransaction> latest = bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(tenantId, PageRequest.of(0, 1));
+            if (!latest.isEmpty()) {
+                LocalDate latestDate = latest.get(0).getTxDate();
+                firstDayOfMonth = latestDate.with(TemporalAdjusters.firstDayOfMonth());
+                lastDayOfMonth = latestDate.with(TemporalAdjusters.lastDayOfMonth());
+                
+                monthIncome = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
+                        tenantId, BankTransaction.TransactionType.CREDIT, firstDayOfMonth, lastDayOfMonth);
+                monthExpense = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
+                        tenantId, BankTransaction.TransactionType.DEBIT, firstDayOfMonth, lastDayOfMonth);
+            }
+        }
+
         stats.setTotalIncome(monthIncome != null ? monthIncome : BigDecimal.ZERO);
         stats.setTotalExpense(monthExpense != null ? monthExpense : BigDecimal.ZERO);
 
-        // Burn rate = total expense / days elapsed in month
-        int daysElapsed = now.getDayOfMonth();
+        // Daily Burn rate for the selected month
+        int daysToDivide = (firstDayOfMonth.getMonthValue() == now.getMonthValue()) ? now.getDayOfMonth() : lastDayOfMonth.getDayOfMonth();
         if (stats.getTotalExpense().compareTo(BigDecimal.ZERO) > 0) {
-            stats.setCurrentMonthBurnRate(stats.getTotalExpense().divide(BigDecimal.valueOf(daysElapsed), 2, RoundingMode.HALF_UP));
+            stats.setCurrentMonthBurnRate(stats.getTotalExpense().divide(BigDecimal.valueOf(daysToDivide), 2, RoundingMode.HALF_UP));
         } else {
             stats.setCurrentMonthBurnRate(BigDecimal.ZERO);
         }
+
+        // 1. Expense by Category
+        List<CategoryInsightDto> categoryInsights = bankTransactionRepository.getTopSpendingByCategory(tenantId);
+        stats.setExpenseByCategory(categoryInsights);
+
+        // 2. Last 30 Days Daily Spend (Trend)
+        LocalDate thirtyDaysAgo = now.minusDays(30);
+        List<BankTransaction> recentTxns = bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(tenantId, PageRequest.of(0, 5000))
+                .stream()
+                .filter(t -> !t.getTxDate().isBefore(thirtyDaysAgo))
+                .filter(t -> t.getType() == BankTransaction.TransactionType.DEBIT)
+                .collect(Collectors.toList());
+
+        stats.setLast30DaysDailySpend(recentTxns.stream()
+                .collect(Collectors.groupingBy(
+                        t -> t.getTxDate().toString(),
+                        Collectors.mapping(BankTransaction::getAmount, Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
+                ))
+                .entrySet().stream()
+                .map(e -> new DashboardStatsDto.DailySummaryDto(e.getKey(), e.getValue()))
+                .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
+                .collect(Collectors.toList()));
 
         return stats;
     }

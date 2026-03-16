@@ -43,6 +43,8 @@ interface DashboardStats {
   currentMonthBurnRate: number;
   totalIncome: number;
   totalExpense: number;
+  expenseByCategory?: { name: string; value: number }[];
+  last30DaysDailySpend?: { date: string; spend: number }[];
 }
 
 interface MonthlySummary {
@@ -233,24 +235,33 @@ export default function DashboardPage() {
         </div>
 
         <div className="p-6 rounded-xl border bg-card/30 backdrop-blur-sm border-primary/10 shadow-xl">
-           <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-amber-500">
-              <TrendingUp className="h-5 w-5" /> 3-Month Projection
+           <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-rose-500">
+              <Flame className="h-5 w-5" /> Daily Burn Trend (30d)
            </h3>
            <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={projectionData}>
+                 <LineChart data={stats.last30DaysDailySpend || []}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="name" tick={{fill: '#888', fontSize: 10}} axisLine={false} tickLine={false} />
-                    <YAxis hide />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{fill: '#888', fontSize: 10}} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tickFormatter={(val) => val.split('-').slice(1).join('/')}
+                    />
+                    <YAxis tick={{fill: '#888', fontSize: 11}} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: '8px' }}
+                      labelFormatter={(label) => `Date: ${label}`}
+                      formatter={(val: any) => formatCurrency(Number(val), currency)}
                     />
-                    <Line type="monotone" dataKey="projected" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b' }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="spend" stroke="#f43f5e" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                  </LineChart>
               </ResponsiveContainer>
            </div>
-           <div className="mt-4 p-4 bg-amber-500/5 rounded-lg border border-amber-500/10 text-xs text-muted-foreground">
-              Based on rolling average of last 6 months.
+           <div className="mt-4 p-4 bg-rose-500/5 rounded-lg border border-rose-500/10 text-xs text-muted-foreground flex items-center justify-between">
+              <span>Real-time burn detection</span>
+              <span className="font-mono font-bold text-rose-500">30-Day View</span>
            </div>
         </div>
       </div>

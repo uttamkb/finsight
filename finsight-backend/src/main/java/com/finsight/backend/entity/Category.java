@@ -24,6 +24,12 @@ public class Category {
     @Column(name = "type", nullable = false)
     private CategoryType type;
 
+    /** Null = top-level category. Non-null = sub-category. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_category_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "parentCategory"})
+    private Category parentCategory;
+
     public enum CategoryType { INCOME, EXPENSE }
 
     public Long getId() { return id; }
@@ -34,4 +40,6 @@ public class Category {
     public void setName(String name) { this.name = name; }
     public CategoryType getType() { return type; }
     public void setType(CategoryType type) { this.type = type; }
+    public Category getParentCategory() { return parentCategory; }
+    public void setParentCategory(Category parentCategory) { this.parentCategory = parentCategory; }
 }

@@ -35,6 +35,9 @@ public class Survey {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "executive_summary", length = 2000)
+    private String executiveSummary;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -59,4 +62,6 @@ public class Survey {
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getExecutiveSummary() { return executiveSummary; }
+    public void setExecutiveSummary(String executiveSummary) { this.executiveSummary = executiveSummary; }
 }

@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -46,12 +49,12 @@ public class CsvStatementParser {
      * Parses a CSV multipart file and returns a list of raw parsed transactions.
      * Limits input to 10,000 non-empty lines to prevent memory exhaustion.
      */
-    public List<ParsedBankTransactionDto> parse(MultipartFile file) throws Exception {
-        log.info("CsvStatementParser: parsing '{}'", file.getOriginalFilename());
+    public List<ParsedBankTransactionDto> parse(File file) throws Exception {
+        log.info("CsvStatementParser: parsing '{}'", file.getName());
 
         // --- Step 1: Read up to 10,000 non-empty lines ---
         List<String> allLines = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
             String line;
             while ((line = reader.readLine()) != null && allLines.size() < 10_000) {
                 if (!line.trim().isEmpty()) allLines.add(line);
@@ -101,7 +104,7 @@ public class CsvStatementParser {
             if (dto != null) results.add(dto);
         }
 
-        log.info("CsvStatementParser: extracted {} rows from '{}'", results.size(), file.getOriginalFilename());
+        log.info("CsvStatementParser: extracted {} rows from '{}'", results.size(), file.getName());
         return results;
     }
 

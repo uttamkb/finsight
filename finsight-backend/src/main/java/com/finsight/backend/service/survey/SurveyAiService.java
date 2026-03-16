@@ -2,9 +2,11 @@ package com.finsight.backend.service.survey;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finsight.backend.entity.AppConfig;
+import com.finsight.backend.entity.survey.Survey;
 import com.finsight.backend.entity.survey.SurveyInsight;
 import com.finsight.backend.entity.survey.SurveyResponse;
 import com.finsight.backend.repository.survey.SurveyInsightRepository;
+import com.finsight.backend.repository.survey.SurveyRepository;
 import com.finsight.backend.repository.survey.SurveyResponseRepository;
 import com.finsight.backend.service.AppConfigService;
 import org.slf4j.Logger;
@@ -28,13 +30,18 @@ public class SurveyAiService {
     private final AppConfigService appConfigService;
     private final SurveyResponseRepository responseRepository;
     private final SurveyInsightRepository insightRepository;
+    private final SurveyRepository surveyRepository;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public SurveyAiService(AppConfigService appConfigService, SurveyResponseRepository responseRepository, SurveyInsightRepository insightRepository) {
+    public SurveyAiService(AppConfigService appConfigService, 
+                           SurveyResponseRepository responseRepository, 
+                           SurveyInsightRepository insightRepository,
+                           SurveyRepository surveyRepository) {
         this.appConfigService = appConfigService;
         this.responseRepository = responseRepository;
         this.insightRepository = insightRepository;
+        this.surveyRepository = surveyRepository;
         this.httpClient = HttpClient.newBuilder().build();
         this.objectMapper = new ObjectMapper();
     }
@@ -56,20 +63,25 @@ public class SurveyAiService {
 
         String prompt = """
                 Analyze the following resident feedback for an apartment complex.
-                Generate facility-wise insights including a sentiment score (0.0 to 1.0), 
-                a brief summary of feedback, and actionable operational recommendations.
+                1. Generate facility-wise insights including a sentiment score (0.0 to 1.0), 
+                   a brief summary of feedback, and actionable operational recommendations.
+                2. Generate an overall Executive Summary (max 300 words) for the Management Committee 
+                   that highlights top strengths, critical weaknesses, and the general community mood.
                 
                 Facilities to analyze: WTP, STP, Gym, DG Backup, Clubhouse, MyGate/Visitor Management, Maintenance, Security, Cleanliness.
                 
-                Return the result strictly as a JSON array of objects:
-                [
-                  {
-                    "facility": "Facility Name",
-                    "sentimentScore": 0.85,
-                    "aiSummary": "Summary text",
-                    "recommendations": "Recommendation text"
-                  }
-                ]
+                Return the result strictly as a JSON object with two fields:
+                {
+                  "facilityInsights": [
+                    {
+                      "facility": "Facility Name",
+                      "sentimentScore": 0.85,
+                      "aiSummary": "Summary text",
+                      "recommendations": "Recommendation text"
+                    }
+                  ],
+                  "executiveSummary": "Overarching analysis for the board..."
+                }
                 
                 Feedback Data:
                 """ + context;
@@ -99,7 +111,17 @@ public class SurveyAiService {
             var rootNode = objectMapper.readTree(response.body());
             String jsonTextContent = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
             
-            List<Map<String, Object>> insightsList = objectMapper.readValue(jsonTextContent, List.class);
+            var resultNode = objectMapper.readTree(jsonTextContent);
+            String executiveSummary = resultNode.path("executiveSummary").asText();
+            
+            // Save Executive Summary to Survey
+            Survey survey = surveyRepository.findById(surveyId).orElse(null);
+            if (survey != null) {
+                survey.setExecutiveSummary(executiveSummary);
+                surveyRepository.save(survey);
+            }
+
+            List<Map<String, Object>> insightsList = objectMapper.convertValue(resultNode.path("facilityInsights"), List.class);
             
             for (Map<String, Object> insightMap : insightsList) {
                 SurveyInsight insight = new SurveyInsight();
