@@ -67,7 +67,7 @@ interface RecentSpent {
   reconciled: boolean;
 }
 
-const COLORS = ['#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
+const COLORS = ['var(--color-primary)', 'var(--color-info)', 'var(--color-secondary)', 'var(--color-accent)', 'var(--color-neutral)', '#d946ef', '#ec4899', '#f43f5e'];
 
 export default function DashboardPage() {
   const { toast } = useToast();
@@ -130,7 +130,7 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground animate-pulse">Initializing Financial Watchdog Dashboard...</p>
+        <p className="text-base-content/60 animate-pulse">Initializing Financial Watchdog Dashboard...</p>
       </div>
     );
   }
@@ -157,7 +157,7 @@ export default function DashboardPage() {
             <LayoutDashboard className="h-8 w-8 text-primary" />
             Financial Dashboard
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-base-content/60 mt-2">
             Real-time oversight of association inflows, outflows, and predictive projections.
           </p>
         </div>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
             toast("Generating system report...", "info");
             window.print();
           }}
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 shadow-lg shadow-primary/20"
+          className="btn btn-primary btn-sm h-10 px-4 gap-2 whitespace-nowrap font-medium transition-colors shadow-lg shadow-primary/20"
         >
           <DownloadCloud className="h-4 w-4" />
           Export Ledger
@@ -174,45 +174,45 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+        <div className="p-6 rounded-xl border bg-base-200/50 backdrop-blur-sm border-success/20 shadow-lg shadow-emerald-500/5">
            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Inflow</p>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider">Monthly Inflow</p>
+              <TrendingUp className="h-4 w-4 text-success" />
            </div>
-           <p className="text-2xl font-bold text-emerald-500 font-mono">{formatCurrency(stats.totalIncome, currency)}</p>
-           <p className="text-[10px] text-muted-foreground mt-1 underline underline-offset-2">Current Month Active</p>
+           <p className="text-2xl font-bold text-success font-mono">{formatCurrency(stats.totalIncome, currency)}</p>
+           <p className="text-[10px] text-base-content/60 mt-1 underline underline-offset-2">Current Month Active</p>
         </div>
 
-        <div className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm border-destructive/20 shadow-lg shadow-destructive/5">
+        <div className="p-6 rounded-xl border bg-base-200/50 backdrop-blur-sm border-destructive/20 shadow-lg shadow-destructive/5">
            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Monthly Outflow</p>
+              <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider">Monthly Outflow</p>
               <TrendingDown className="h-4 w-4 text-destructive" />
            </div>
            <p className="text-2xl font-bold text-destructive font-mono">{formatCurrency(stats.totalExpense, currency)}</p>
-           <p className="text-[10px] text-muted-foreground mt-1 underline underline-offset-2">Receipts + Bank Debits</p>
+           <p className="text-[10px] text-base-content/60 mt-1 underline underline-offset-2">Receipts + Bank Debits</p>
         </div>
 
-        <div className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm border-primary/20 shadow-lg shadow-primary/5">
+        <div className="p-6 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/30 shadow-lg shadow-primary/5">
            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Daily Burn Rate</p>
+              <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider">Daily Burn Rate</p>
               <Flame className="h-4 w-4 text-primary" />
            </div>
            <p className="text-2xl font-bold font-mono">{formatCurrency(stats.currentMonthBurnRate, currency)}</p>
-           <p className="text-[10px] text-muted-foreground mt-1">Avg per day this month</p>
+           <p className="text-[10px] text-base-content/60 mt-1">Avg per day this month</p>
         </div>
 
-        <Link href="/vendors" className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm border-rose-500/20 shadow-lg shadow-rose-500/5 hover:border-rose-500/40 transition-all">
+        <Link href="/vendors" className="p-6 rounded-xl border bg-base-200/50 backdrop-blur-sm border-rose-500/20 shadow-lg shadow-rose-500/5 hover:border-rose-500/40 transition-all">
            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Anomalies</p>
+              <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider">AI Anomalies</p>
               <ShieldAlert className="h-4 w-4 text-rose-500" />
            </div>
            <p className="text-2xl font-bold text-rose-500">{unresolvedAnomalies}</p>
-           <p className="text-[10px] text-muted-foreground mt-1">Unresolved audit items</p>
+           <p className="text-[10px] text-base-content/60 mt-1">Unresolved audit items</p>
         </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <div className="lg:col-span-2 p-6 rounded-xl border bg-card/30 backdrop-blur-sm border-primary/10 shadow-xl">
+        <div className="lg:col-span-2 p-6 rounded-xl border bg-base-200/30 backdrop-blur-sm border-primary/10 shadow-xl">
            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
               <History className="h-5 w-5 text-primary" /> Income vs Expense History
            </h3>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
            </div>
         </div>
 
-        <div className="p-6 rounded-xl border bg-card/30 backdrop-blur-sm border-primary/10 shadow-xl">
+        <div className="p-6 rounded-xl border bg-base-200/30 backdrop-blur-sm border-primary/10 shadow-xl">
            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-rose-500">
               <Flame className="h-5 w-5" /> Daily Burn Trend (30d)
            </h3>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
                  </LineChart>
               </ResponsiveContainer>
            </div>
-           <div className="mt-4 p-4 bg-rose-500/5 rounded-lg border border-rose-500/10 text-xs text-muted-foreground flex items-center justify-between">
+           <div className="mt-4 p-4 bg-rose-500/5 rounded-lg border border-rose-500/10 text-xs text-base-content/60 flex items-center justify-between">
               <span>Real-time burn detection</span>
               <span className="font-mono font-bold text-rose-500">30-Day View</span>
            </div>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* OCR breakdown */}
-        <div className="p-6 rounded-xl border bg-card/30 backdrop-blur-sm border-primary/10 shadow-xl">
+        <div className="p-6 rounded-xl border bg-base-200/30 backdrop-blur-sm border-primary/10 shadow-xl">
            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" /> AI Ingestion Insights
            </h3>
@@ -296,7 +296,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Category Spend breakdown */}
-        <div className="p-6 rounded-xl border bg-card/30 backdrop-blur-sm border-primary/10 shadow-xl">
+        <div className="p-6 rounded-xl border bg-base-200/30 backdrop-blur-sm border-primary/10 shadow-xl">
            <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" /> Expenditure by Category
            </h3>
@@ -320,7 +320,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-primary/10 bg-card overflow-hidden shadow-xl">
+      <div className="rounded-xl border border-primary/10 bg-base-200 overflow-hidden shadow-xl">
          <div className="p-6 border-b border-primary/10 flex items-center justify-between">
             <h2 className="text-xl font-bold flex items-center gap-2">
                <Wallet className="h-5 w-5 text-primary" />
@@ -335,7 +335,7 @@ export default function DashboardPage() {
          </div>
          <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-               <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+               <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
                   <tr>
                      <th scope="col" className="px-6 py-4 font-medium">Date</th>
                      <th scope="col" className="px-6 py-4 font-medium">Description</th>
@@ -346,27 +346,27 @@ export default function DashboardPage() {
                <tbody className="divide-y divide-primary/5">
                   {recentSpent.length === 0 ? (
                      <tr>
-                        <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground italic">
+                        <td colSpan={4} className="px-6 py-10 text-center text-base-content/60 italic">
                            No transactions found. Synchronize your accounts to start monitoring.
                         </td>
                      </tr>
                   ) : (
                     recentSpent.map((txn) => (
-                      <tr key={txn.id} className="hover:bg-muted/30 transition-colors">
-                         <td className="px-6 py-4 whitespace-nowrap text-muted-foreground font-mono text-xs">
+                      <tr key={txn.id} className="hover:bg-base-300/30 transition-colors">
+                         <td className="px-6 py-4 whitespace-nowrap text-base-content/60 font-mono text-xs">
                             {txn.txDate}
                          </td>
                          <td className="px-6 py-4 font-medium max-w-[300px] truncate">
                             {txn.description}
                          </td>
-                         <td className={`px-6 py-4 whitespace-nowrap text-right font-mono font-bold ${txn.type === 'DEBIT' ? 'text-destructive' : 'text-emerald-500'}`}>
+                         <td className={`px-6 py-4 whitespace-nowrap text-right font-mono font-bold ${txn.type === 'DEBIT' ? 'text-destructive' : 'text-success'}`}>
                             {txn.type === 'DEBIT' ? '-' : '+'}{formatCurrency(txn.amount, currency)}
                          </td>
                          <td className="px-6 py-4 whitespace-nowrap text-center">
                             {txn.reconciled ? (
-                               <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-full border border-emerald-500/20 font-bold tracking-tight">VERIFIED</span>
+                               <span className="text-[10px] bg-success/10 text-success px-2 py-1 rounded-full border border-success/20 font-bold tracking-tight">VERIFIED</span>
                             ) : (
-                               <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-1 rounded-full border border-amber-500/20 font-bold tracking-tight">UNAUDITED</span>
+                               <span className="text-[10px] bg-warning/10 text-warning px-2 py-1 rounded-full border border-warning/20 font-bold tracking-tight">UNAUDITED</span>
                             )}
                          </td>
                       </tr>

@@ -42,19 +42,19 @@ export default function Home() {
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
           Automate your <span className="text-primary block">Apartment Finances</span>
         </h1>
-        <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+        <p className="mx-auto max-w-[700px] text-base-content/60 md:text-xl">
           FinSight intelligently ingests receipts via Google Drive, parses Bank Statements, and reconciles everything down to the penny.
         </p>
         <div className="flex justify-center gap-4 mt-8">
           <Link
             href="/dashboard"
-            className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-content transition-colors hover:bg-primary/90"
           >
             Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
           <Link
             href="/settings"
-            className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-background px-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-base-100 px-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-content"
           >
             Configure System
           </Link>
@@ -66,44 +66,44 @@ export default function Home() {
           <div 
             key={feature.id}
             onClick={() => setSelectedFeature(feature)}
-            className="group flex flex-col space-y-2 p-6 rounded-xl border bg-card text-card-foreground shadow-sm hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all cursor-pointer relative overflow-hidden"
+            className="group flex flex-col space-y-2 p-6 rounded-xl border bg-base-200 text-card-foreground shadow-sm hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all cursor-pointer relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
               <ArrowRight className="h-4 w-4 text-primary" />
             </div>
             <feature.icon className="h-10 w-10 text-primary mb-2" />
             <h3 className="font-semibold tracking-tight text-xl">{feature.title}</h3>
-            <p className="text-sm text-muted-foreground">{feature.description}</p>
+            <p className="text-sm text-base-content/60">{feature.description}</p>
           </div>
         ))}
       </div>
 
       {/* Feature Detail Modal */}
       {selectedFeature && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative max-w-2xl w-full bg-card border rounded-2xl shadow-2xl p-8 md:p-10 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-base-100/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative max-w-2xl w-full bg-base-200 border rounded-2xl shadow-2xl p-8 md:p-10 animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setSelectedFeature(null)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-base-300 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="flex flex-col items-center text-center space-y-6">
-              <div className="p-4 bg-primary/10 rounded-2xl">
+              <div className="p-4 bg-primary/20 rounded-2xl">
                 <selectedFeature.icon className="h-16 w-16 text-primary" />
               </div>
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">{selectedFeature.title}</h2>
                 <p className="text-primary font-medium">{selectedFeature.description}</p>
               </div>
-              <div className="bg-muted/50 p-6 rounded-xl border text-left">
-                <p className="text-lg leading-relaxed text-muted-foreground">
+              <div className="bg-base-300/50 p-6 rounded-xl border text-left">
+                <p className="text-lg leading-relaxed text-base-content/60">
                   {selectedFeature.explanation}
                 </p>
               </div>
               <button 
                 onClick={() => setSelectedFeature(null)}
-                className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all"
+                className="bg-primary text-primary-content px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all"
               >
                 Got it, thanks!
               </button>

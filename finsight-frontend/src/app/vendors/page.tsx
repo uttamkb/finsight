@@ -37,7 +37,7 @@ interface Anomaly {
   detectedAt?: string;
 }
 
-const COLORS = ['#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
+const COLORS = ['var(--color-primary)', 'var(--color-info)', 'var(--color-secondary)', 'var(--color-accent)', 'var(--color-neutral)', '#d946ef', '#ec4899', '#f43f5e'];
 
 export default function VendorsPage() {
   const { toast } = useToast();
@@ -146,7 +146,7 @@ export default function VendorsPage() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-card/90 backdrop-blur-md border border-primary/20 p-3 rounded-lg shadow-xl">
+        <div className="bg-base-200/90 backdrop-blur-md border border-primary/30 p-3 rounded-lg shadow-xl">
           <p className="font-semibold">{label || payload[0].name}</p>
           <p className="text-primary font-mono">{formatCurrency(payload[0].value, currency)}</p>
         </div>
@@ -163,7 +163,7 @@ export default function VendorsPage() {
             <Building2 className="h-8 w-8 text-primary" />
             Vendor Insights & Audit
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-base-content/60 mt-2">
             Analyze expenditure flows and audit transactions using AI Anomaly Detection.
           </p>
         </div>
@@ -176,7 +176,7 @@ export default function VendorsPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className="p-0 flex flex-col rounded-xl border bg-card/50 backdrop-blur-sm border-primary/10 shadow-lg overflow-hidden">
+            <div className="p-0 flex flex-col rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 shadow-lg overflow-hidden">
                <div className="p-6 pb-0">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Building2 className="h-5 w-5 text-primary" /> Top 10 Vendors
@@ -198,7 +198,7 @@ export default function VendorsPage() {
                </div>
                <div className="border-t border-primary/5">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-muted/30 text-muted-foreground uppercase font-bold">
+                    <thead className="bg-base-300/30 text-base-content/60 uppercase font-bold">
                       <tr>
                         <th className="px-6 py-3">Vendor</th>
                         <th className="px-6 py-3 text-right">Transactions</th>
@@ -218,7 +218,7 @@ export default function VendorsPage() {
                </div>
             </div>
 
-            <div className="p-6 rounded-xl border bg-card/50 backdrop-blur-sm border-primary/10 shadow-lg">
+            <div className="p-6 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 shadow-lg">
                <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                  <PieChartIcon className="h-5 w-5 text-primary" /> Expenditure by Category
                </h3>
@@ -246,35 +246,35 @@ export default function VendorsPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-primary/10 bg-card overflow-hidden shadow-lg relative">
+          <div className="rounded-xl border border-primary/10 bg-base-200 overflow-hidden shadow-lg relative">
              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
              
              <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between border-b border-primary/10 gap-4">
                 <div>
                   <h2 className="text-xl font-bold flex items-center gap-2">
-                     <AlertTriangle className="h-5 w-5 text-amber-500" />
+                     <AlertTriangle className="h-5 w-5 text-warning" />
                      Forensic Audit Watchdog
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-base-content/60 mt-1">
                     AI-powered anomaly detection for suspicious patterns, duplicates, and inflated costs.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg border border-primary/5">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Auto-Audit</span>
+                  <div className="flex items-center gap-2 bg-base-300/50 px-3 py-1.5 rounded-lg border border-primary/5">
+                    <span className="text-[10px] uppercase font-bold text-base-content/60 tracking-wider">Auto-Audit</span>
                     <button 
                       onClick={() => setAutoRefresh(!autoRefresh)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-muted ${autoRefresh ? 'bg-primary' : 'bg-muted'}`}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-base-300 ${autoRefresh ? 'bg-primary' : 'bg-base-300'}`}
                     >
                       <span
-                        className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0'}`}
+                        className={`pointer-events-none block h-4 w-4 rounded-full bg-base-100 shadow-lg ring-0 transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0'}`}
                       />
                     </button>
                   </div>
                   <button
                     onClick={() => runAnomalyDetection()}
                     disabled={isDetecting}
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 shadow-lg shadow-primary/20 hover:scale-105"
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-content hover:bg-primary/90 h-10 px-4 py-2 shadow-lg shadow-primary/20 hover:scale-105"
                   >
                     {isDetecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     Invoke Analyst
@@ -284,7 +284,7 @@ export default function VendorsPage() {
 
              <div className="p-0">
                {!hasRunDetection && !isDetecting ? (
-                  <div className="px-6 py-16 text-center text-muted-foreground">
+                  <div className="px-6 py-16 text-center text-base-content/60">
                      <AlertCircle className="h-8 w-8 mx-auto mb-3 opacity-20" />
                      <p>No prior audit results found. Run a security audit to begin forensic analysis.</p>
                   </div>
@@ -295,16 +295,16 @@ export default function VendorsPage() {
                   </div>
                ) : anomalies.length === 0 ? (
                   <div className="px-6 py-16 text-center">
-                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 mb-4">
-                        <Sparkles className="h-8 w-8 text-emerald-500" />
+                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 mb-4">
+                        <Sparkles className="h-8 w-8 text-success" />
                      </div>
-                     <p className="text-xl font-semibold text-emerald-500 mb-1">Clean Audit!</p>
-                     <p className="text-muted-foreground">No suspicious transactions found in the forensic buffer.</p>
+                     <p className="text-xl font-semibold text-success mb-1">Clean Audit!</p>
+                     <p className="text-base-content/60">No suspicious transactions found in the forensic buffer.</p>
                   </div>
                ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+                      <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
                         <tr>
                           <th scope="col" className="px-6 py-4 font-medium">Flagged Entity</th>
                           <th scope="col" className="px-6 py-4 font-medium">Amount</th>
@@ -317,18 +317,18 @@ export default function VendorsPage() {
                            <tr key={idx} className="hover:bg-destructive/5 transition-colors group">
                              <td className="px-6 py-4">
                                <div className="font-medium">{anomaly.description}</div>
-                               <div className="text-xs text-muted-foreground mt-0.5">{anomaly.date || anomaly.txDate}</div>
+                               <div className="text-xs text-base-content/60 mt-0.5">{anomaly.date || anomaly.txDate}</div>
                              </td>
                              <td className="px-6 py-4 font-mono font-bold text-destructive">
                                 {formatCurrency(anomaly.amount, currency)}
                              </td>
                              <td className="px-6 py-4">
                                <div className="flex items-start gap-2">
-                                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                                  <span className="text-muted-foreground text-xs leading-relaxed">{anomaly.reason}</span>
+                                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                                  <span className="text-base-content/60 text-xs leading-relaxed">{anomaly.reason}</span>
                                </div>
                              </td>
-                             <td className="px-6 py-4 text-right text-[10px] text-muted-foreground font-mono">
+                             <td className="px-6 py-4 text-right text-[10px] text-base-content/60 font-mono">
                                 {anomaly.detectedAt ? new Date(anomaly.detectedAt).toLocaleString() : 'Live'}
                              </td>
                            </tr>

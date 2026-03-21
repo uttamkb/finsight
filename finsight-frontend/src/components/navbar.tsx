@@ -49,7 +49,7 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-base-content/20/40 bg-base-100/95 backdrop-blur supports-[backdrop-filter]:bg-base-100/60">
       <div className="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
@@ -63,8 +63,8 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`transition-colors hover:text-foreground/80 ${
-                  pathname === link.href ? "text-foreground font-bold" : "text-foreground/60"
+                className={`transition-colors hover:text-base-content/80 ${
+                  pathname === link.href ? "text-base-content font-bold" : "text-base-content/60"
                 }`}
               >
                 {link.label}
@@ -72,13 +72,13 @@ export function Navbar() {
             ))}
             <Link
               href="/vendors"
-              className={`transition-colors hover:text-foreground/80 flex items-center gap-1 ${
-                pathname === "/vendors" ? "text-foreground font-bold" : "text-foreground/60"
+              className={`transition-colors hover:text-base-content/80 flex items-center gap-1 ${
+                pathname === "/vendors" ? "text-base-content font-bold" : "text-base-content/60"
               }`}
             >
               Vendors
               {anomalyCount > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-error-content animate-pulse">
                   {anomalyCount}
                 </span>
               )}
@@ -92,7 +92,7 @@ export function Navbar() {
           <nav className="flex items-center space-x-2">
             <Link
               href="/settings"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-muted dark:hover:bg-muted"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-base-300"
             >
                <span className="sr-only">Settings</span>
                <svg

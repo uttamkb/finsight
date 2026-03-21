@@ -9,12 +9,12 @@ export default function SystemInformationPage() {
   return (
     <div className="container mx-auto py-10 px-4 max-w-7xl animate-in fade-in duration-500">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-primary/10 rounded-xl text-primary">
+        <div className="p-3 bg-primary/20 rounded-xl text-primary">
           <Info className="h-8 w-8" />
         </div>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">System Information & Architecture</h1>
-          <p className="text-muted-foreground">Comprehensive documentation of the FinSight live system and components.</p>
+          <p className="text-base-content/60">Comprehensive documentation of the FinSight live system and components.</p>
         </div>
       </div>
 
@@ -33,8 +33,8 @@ export default function SystemInformationPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${
               activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                ? "bg-primary text-primary-content shadow-md"
+                : "bg-base-300 hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
             }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -46,12 +46,12 @@ export default function SystemInformationPage() {
       <div className="grid gap-6">
         {activeTab === "overview" && (
           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-6 rounded-2xl border bg-card shadow-sm">
+            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-primary" />
                 Product Mission
               </h2>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-base-content/60 leading-relaxed">
                 FinSight is an intelligent financial management platform engineered specifically for Apartment and Housing Associations. It automates the ingestion, parsing, and reconciliation of association expenses by combining optical character recognition (OCR) with robust reconciliation algorithms. The system aims to replace manual ledger tracking with an automated pipeline that traces every spent cent from bank statements directly to physical/digital receipts, ensuring 100% financial transparency and fraud prevention.
               </p>
             </div>
@@ -65,10 +65,10 @@ export default function SystemInformationPage() {
                 { title: "Conflict Resolution", desc: "Audit trails automatically flag and queue mismatched amounts or missing records for manual review.", icon: ShieldCheck },
                 { title: "Multi-Tenancy", desc: "Data is segregated by `tenant_id` at the database level, allowing for secure multi-association management.", icon: Database },
               ].map((feature, i) => (
-                <div key={i} className="p-5 rounded-xl border bg-card/50 hover:bg-card transition-colors">
+                <div key={i} className="p-5 rounded-xl border bg-base-200/50 hover:bg-base-200 transition-colors">
                   <feature.icon className="h-6 w-6 text-primary mb-3" />
                   <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                  <p className="text-sm text-base-content/60">{feature.desc}</p>
                 </div>
               ))}
             </div>
@@ -77,7 +77,7 @@ export default function SystemInformationPage() {
 
         {activeTab === "architecture" && (
           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-6 rounded-2xl border bg-card shadow-sm">
+            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Server className="h-5 w-5 text-primary" />
                 High-Level System Design
@@ -85,52 +85,52 @@ export default function SystemInformationPage() {
               
               <div className="flex flex-col md:flex-row items-center justify-center gap-4 py-8">
                 {/* Client */}
-                <div className="flex flex-col items-center w-full md:w-1/4 p-6 rounded-xl border-2 border-primary/20 bg-primary/5 text-center relative z-10">
+                <div className="flex flex-col items-center w-full md:w-1/4 p-6 rounded-xl border-2 border-primary/30 bg-primary/5 text-center relative z-10">
                   <Smartphone className="h-10 w-10 text-primary mb-3" />
                   <h3 className="font-bold text-lg">Next.js Frontend</h3>
-                  <p className="text-xs text-muted-foreground mt-2">React 19, Tailwind v4, API Centralization (constants.ts)</p>
+                  <p className="text-xs text-base-content/60 mt-2">React 19, Tailwind v4, API Centralization (constants.ts)</p>
                 </div>
 
                 {/* Arrow */}
-                <div className="flex flex-col items-center text-muted-foreground">
+                <div className="flex flex-col items-center text-base-content/60">
                   <span className="text-xs font-mono mb-1">REST API (JSON)</span>
-                  <div className="h-0.5 w-16 bg-muted-foreground/30 hidden md:block relative">
+                  <div className="h-0.5 w-16 bg-base-300-foreground/30 hidden md:block relative">
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-2 border-r-2 border-muted-foreground/30 rotate-45"></div>
                   </div>
-                  <div className="w-0.5 h-8 bg-muted-foreground/30 md:hidden relative"></div>
+                  <div className="w-0.5 h-8 bg-base-300-foreground/30 md:hidden relative"></div>
                 </div>
 
                 {/* Server */}
-                <div className="flex flex-col items-center w-full md:w-1/3 p-6 rounded-xl border-2 border-blue-500/20 bg-blue-500/5 text-center relative z-10">
-                  <Server className="h-10 w-10 text-blue-500 mb-3" />
+                <div className="flex flex-col items-center w-full md:w-1/3 p-6 rounded-xl border-2 border-blue-500/20 bg-info/5 text-center relative z-10">
+                  <Server className="h-10 w-10 text-info mb-3" />
                   <h3 className="font-bold text-lg">Spring Boot API Layer</h3>
-                  <p className="text-xs text-muted-foreground mt-2">Java 21, Spring Web, Controllers, CORS enabled</p>
+                  <p className="text-xs text-base-content/60 mt-2">Java 21, Spring Web, Controllers, CORS enabled</p>
                   
                   <div className="w-full h-px bg-border my-4"></div>
                   
                   <div className="grid grid-cols-2 gap-2 w-full text-xs">
-                    <div className="bg-background p-2 rounded border">DriveSyncService</div>
-                    <div className="bg-background p-2 rounded border">OcrService</div>
-                    <div className="bg-background p-2 rounded border text-primary font-bold">API_BASE_URL</div>
-                    <div className="bg-background p-2 rounded border">Gemini 3 Parser</div>
-                    <div className="bg-background p-2 rounded border text-indigo-500 font-bold underline decoration-indigo-500/30">SurveyEngine</div>
+                    <div className="bg-base-100 p-2 rounded border">DriveSyncService</div>
+                    <div className="bg-base-100 p-2 rounded border">OcrService</div>
+                    <div className="bg-base-100 p-2 rounded border text-primary font-bold">API_BASE_URL</div>
+                    <div className="bg-base-100 p-2 rounded border">Gemini 3 Parser</div>
+                    <div className="bg-base-100 p-2 rounded border text-primary font-bold underline decoration-indigo-500/30">SurveyEngine</div>
                   </div>
                 </div>
 
                 {/* Arrow */}
-                <div className="flex flex-col items-center text-muted-foreground">
+                <div className="flex flex-col items-center text-base-content/60">
                   <span className="text-xs font-mono mb-1">JPA / Hibernate</span>
-                  <div className="h-0.5 w-16 bg-muted-foreground/30 hidden md:block relative">
+                  <div className="h-0.5 w-16 bg-base-300-foreground/30 hidden md:block relative">
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-2 border-r-2 border-muted-foreground/30 rotate-45"></div>
                   </div>
-                  <div className="w-0.5 h-8 bg-muted-foreground/30 md:hidden relative"></div>
+                  <div className="w-0.5 h-8 bg-base-300-foreground/30 md:hidden relative"></div>
                 </div>
 
                 {/* DB */}
-                <div className="flex flex-col items-center w-full md:w-1/4 p-6 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 text-center relative z-10">
-                  <Database className="h-10 w-10 text-amber-500 mb-3" />
+                <div className="flex flex-col items-center w-full md:w-1/4 p-6 rounded-xl border-2 border-warning/20 bg-warning/5 text-center relative z-10">
+                  <Database className="h-10 w-10 text-warning mb-3" />
                   <h3 className="font-bold text-lg">SQLite / Turso DB</h3>
-                  <p className="text-xs text-muted-foreground mt-2">finsight.db | LibSQL Embedded mode, WAL Mode</p>
+                  <p className="text-xs text-base-content/60 mt-2">finsight.db | LibSQL Embedded mode, WAL Mode</p>
                 </div>
               </div>
             </div>
@@ -140,37 +140,37 @@ export default function SystemInformationPage() {
         {/* ... Include remaining tabs ... */}
         {activeTab === "schema" && (
            <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 rounded-2xl border bg-card shadow-sm">
+             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <Database className="h-5 w-5 text-primary" />
                   Embedded Database Schema (SQLite + Turso)
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
-                  <div className="border rounded-lg overflow-hidden border-indigo-500/30 ring-1 ring-indigo-500/20">
-                    <div className="bg-indigo-500/10 p-3 border-b border-indigo-500/30 font-mono font-bold text-sm flex items-center justify-between">
+                  <div className="border rounded-lg overflow-hidden border-primary/30 ring-1 ring-indigo-500/20">
+                    <div className="bg-primary/10 p-3 border-b border-primary/30 font-mono font-bold text-sm flex items-center justify-between">
                       <span className="text-indigo-600">surveys & responses (Turso)</span>
-                      <span className="text-[10px] font-sans text-indigo-500 bg-background px-2 py-0.5 rounded border border-indigo-500/30 font-bold uppercase tracking-wider">Active Planning</span>
+                      <span className="text-[10px] font-sans text-primary bg-base-100 px-2 py-0.5 rounded border border-primary/30 font-bold uppercase tracking-wider">Active Planning</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
-                      <div className="flex justify-between"><span>survey_id, form_url</span> <span className="text-indigo-500/70">METADATA</span></div>
-                      <div className="flex justify-between"><span>responses</span> <span className="text-indigo-500/70">RAW DATA</span></div>
-                      <div className="flex justify-between"><span>ai_insights</span> <span className="text-indigo-500/70">AGGREGATED</span></div>
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
+                      <div className="flex justify-between"><span>survey_id, form_url</span> <span className="text-primary/70">METADATA</span></div>
+                      <div className="flex justify-between"><span>responses</span> <span className="text-primary/70">RAW DATA</span></div>
+                      <div className="flex justify-between"><span>ai_insights</span> <span className="text-primary/70">AGGREGATED</span></div>
                     </div>
                   </div>
                   
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
+                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
                       <span>receipts</span>
-                      <span className="text-xs font-sans text-muted-foreground bg-background px-2 py-0.5 rounded border">Primary Data</span>
+                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Primary Data</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
                       <div className="flex justify-between"><span>tenant_id</span> <span>TEXT NOT NULL</span></div>
                       <div className="flex justify-between"><span>drive_file_id</span> <span>TEXT UNIQUE</span></div>
                       <div className="flex justify-between"><span>file_name, vendor</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>amount, ocr_conf</span> <span className="text-blue-500/70">REAL (BigDecimal 15,2)</span></div>
-                      <div className="flex justify-between"><span>content_hash</span> <span className="text-emerald-500/70">TEXT (SHA-256 Dedup)</span></div>
+                      <div className="flex justify-between"><span>amount, ocr_conf</span> <span className="text-info/70">REAL (BigDecimal 15,2)</span></div>
+                      <div className="flex justify-between"><span>content_hash</span> <span className="text-success/70">TEXT (SHA-256 Dedup)</span></div>
                       <div className="flex justify-between"><span>google_drive_link</span> <span>TEXT (URL)</span></div>
                       <div className="flex justify-between"><span>category</span> <span>TEXT</span></div>
                       <div className="flex justify-between"><span>status</span> <span>TEXT (PENDING|PROCESSED..)</span></div>
@@ -178,27 +178,27 @@ export default function SystemInformationPage() {
                   </div>
 
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
+                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
                       <span>bank_transactions</span>
-                      <span className="text-xs font-sans text-muted-foreground bg-background px-2 py-0.5 rounded border">Reconciliation Data</span>
+                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Reconciliation Data</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
                       <div className="flex justify-between"><span>tx_date</span> <span>DATE NOT NULL</span></div>
                       <div className="flex justify-between"><span>description</span> <span>TEXT NOT NULL</span></div>
                       <div className="flex justify-between"><span>amount</span> <span>REAL NOT NULL</span></div>
                       <div className="flex justify-between"><span>reconciled</span> <span>INTEGER (0/1)</span></div>
-                      <div className="flex justify-between"><span>category_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
-                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-amber-500/70">FK INTEGER</span></div>
+                      <div className="flex justify-between"><span>category_id</span> <span className="text-warning/70">FK INTEGER</span></div>
+                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-warning/70">FK INTEGER</span></div>
                     </div>
                   </div>
 
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm">audit_trail</div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm">audit_trail</div>
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                        <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER (Indexed)</span></div>
-                      <div className="flex justify-between"><span>transaction_id</span> <span className="text-amber-500/70">FK INTEGER (Indexed)</span></div>
-                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-amber-500/70">FK INTEGER (Indexed)</span></div>
+                      <div className="flex justify-between"><span>transaction_id</span> <span className="text-warning/70">FK INTEGER (Indexed)</span></div>
+                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-warning/70">FK INTEGER (Indexed)</span></div>
                       <div className="flex justify-between"><span>issue_type</span> <span>TEXT (MISMATCH)</span></div>
                       <div className="flex justify-between"><span>similarity_score</span> <span>REAL (60-30-10 Logic)</span></div>
                       <div className="flex justify-between"><span>match_type</span> <span>TEXT (AUTO|SUGGESTED)</span></div>
@@ -207,25 +207,25 @@ export default function SystemInformationPage() {
                   </div>
 
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
+                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
                       <span>vendors</span>
-                      <span className="text-xs font-sans text-muted-foreground bg-background px-2 py-0.5 rounded border">Analytics</span>
+                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Analytics</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
                       <div className="flex justify-between"><span>name</span> <span>TEXT UNIQUE</span></div>
                       <div className="flex justify-between"><span>total_payments</span> <span>INTEGER</span></div>
                       <div className="flex justify-between"><span>total_spent</span> <span>REAL</span></div>
-                      <div className="flex justify-between"><span>last_payment_date</span> <span className="text-emerald-500/70">TIMESTAMP</span></div>
+                      <div className="flex justify-between"><span>last_payment_date</span> <span className="text-success/70">TIMESTAMP</span></div>
                     </div>
                   </div>
 
                   <div className="border rounded-lg overflow-hidden border-rose-500/30">
                     <div className="bg-rose-500/10 p-3 border-b border-rose-500/30 font-mono font-bold text-sm flex items-center justify-between">
                       <span className="text-rose-600">forensic_anomalies</span>
-                      <span className="text-xs font-sans text-rose-500 bg-background px-2 py-0.5 rounded border border-rose-500/30">Risk Engine</span>
+                      <span className="text-xs font-sans text-rose-500 bg-base-100 px-2 py-0.5 rounded border border-rose-500/30">Risk Engine</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
                       <div className="flex justify-between"><span>description</span> <span>TEXT</span></div>
                       <div className="flex justify-between"><span>reason</span> <span className="text-rose-500/70">TEXT (Logic)</span></div>
@@ -235,8 +235,8 @@ export default function SystemInformationPage() {
                   </div>
 
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm">categories</div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm">categories</div>
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
                       <div className="flex justify-between"><span>name</span> <span>TEXT UNIQUE</span></div>
                       <div className="flex justify-between"><span>type</span> <span>TEXT (INCOME\|EXPENSE)</span></div>
@@ -244,15 +244,15 @@ export default function SystemInformationPage() {
                   </div>
 
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
+                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
                       <span>app_config</span>
-                      <span className="text-xs font-sans text-muted-foreground bg-background px-2 py-0.5 rounded border">Global Settings</span>
+                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Global Settings</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-muted-foreground">
+                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
                       <div className="flex justify-between"><span>apartment_name</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>service_account_json</span> <span className="text-blue-500">TEXT (Long)</span></div>
+                      <div className="flex justify-between"><span>service_account_json</span> <span className="text-info">TEXT (Long)</span></div>
                       <div className="flex justify-between"><span>gemini_api_key</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>synced_at</span> <span className="text-emerald-500">TIMESTAMP</span></div>
+                      <div className="flex justify-between"><span>synced_at</span> <span className="text-success">TIMESTAMP</span></div>
                       <div className="mt-2 pt-2 border-t text-[10px] uppercase tracking-tighter opacity-70">
                         Implements Priority Logic: Saved UI Settings &gt; Env Fallbacks.
                       </div>
@@ -266,7 +266,7 @@ export default function SystemInformationPage() {
 
         {activeTab === "tech-stack" && (
            <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 rounded-2xl border bg-card shadow-sm">
+             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                   <Layers className="h-5 w-5 text-primary" />
                   Engineering Technology Stack
@@ -278,17 +278,17 @@ export default function SystemInformationPage() {
                        <LayoutDashboard className="h-4 w-4" /> Frontend (Web Client)
                     </h3>
                     <ul className="space-y-3">
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Framework</span> <span className="font-mono text-muted-foreground">Next.js 16 (React 19)</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Framework</span> <span className="font-mono text-base-content/60">Next.js 16 (React 19)</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Language</span> <span className="font-mono text-muted-foreground">TypeScript</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Language</span> <span className="font-mono text-base-content/60">TypeScript</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Styling</span> <span className="font-mono text-muted-foreground">Tailwind CSS v4</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Styling</span> <span className="font-mono text-base-content/60">Tailwind CSS v4</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Icons & Visuals</span> <span className="font-mono text-muted-foreground">Lucide, Recharts</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Icons & Visuals</span> <span className="font-mono text-base-content/60">Lucide, Recharts</span>
                       </li>
                     </ul>
                   </div>
@@ -298,20 +298,20 @@ export default function SystemInformationPage() {
                        <Cpu className="h-4 w-4" /> Backend API (Server)
                     </h3>
                     <ul className="space-y-3">
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Framework</span> <span className="font-mono text-muted-foreground">Spring Boot 3.4.3</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Framework</span> <span className="font-mono text-base-content/60">Spring Boot 3.4.3</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Language</span> <span className="font-mono text-muted-foreground">Java 21</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Language</span> <span className="font-mono text-base-content/60">Java 21</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Build Tool</span> <span className="font-mono text-muted-foreground">Maven</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Build Tool</span> <span className="font-mono text-base-content/60">Maven</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Database Layer</span> <span className="font-mono text-muted-foreground">Spring Data JPA, Hibernate</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Database Layer</span> <span className="font-mono text-base-content/60">Spring Data JPA, Hibernate</span>
                       </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-background text-sm">
-                        <span className="font-medium">Embedded DB</span> <span className="font-mono text-muted-foreground">SQLite / Turso (LibSQL)</span>
+                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                        <span className="font-medium">Embedded DB</span> <span className="font-mono text-base-content/60">SQLite / Turso (LibSQL)</span>
                       </li>
                     </ul>
                   </div>
@@ -322,7 +322,7 @@ export default function SystemInformationPage() {
 
         {activeTab === "data-flow" && (
            <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 rounded-2xl border bg-card shadow-sm">
+             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <Workflow className="h-5 w-5 text-primary" />
                   Core Data Processing Pipeline
@@ -334,14 +334,14 @@ export default function SystemInformationPage() {
                     { step: "3", title: "Gemini 3 & Resident Insights", desc: "Bank statement categorization and Resident sentiment generation. Gemini acts as an intelligent fallback for malformed table data." },
                     { step: "4", title: "Financial Reconciliation", desc: "ReconciliationService uses a 60-30-10 scoring logic with tiered BigDecimal precision and SHA-256 deduplication." }
                   ].map((pipe, i) => (
-                    <div key={i} className="flex gap-4 p-4 border rounded-xl bg-background relative overflow-hidden group hover:border-primary/50 transition-colors">
+                    <div key={i} className="flex gap-4 p-4 border rounded-xl bg-base-100 relative overflow-hidden group hover:border-primary/50 transition-colors">
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors"></div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold font-mono shadow-md">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold font-mono shadow-md">
                         {pipe.step}
                       </div>
                       <div>
                         <h3 className="font-bold mb-1 group-hover:text-primary transition-colors">{pipe.title}</h3>
-                        <p className="text-muted-foreground text-sm leading-relaxed">{pipe.desc}</p>
+                        <p className="text-base-content/60 text-sm leading-relaxed">{pipe.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -353,20 +353,20 @@ export default function SystemInformationPage() {
         {activeTab === "integrations" && (
            <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-2xl border bg-card shadow-sm relative overflow-hidden">
-                  <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl"></div>
-                  <HardDrive className="h-8 w-8 text-emerald-500 mb-4 relative z-10" />
+                <div className="p-6 rounded-2xl border bg-base-200 shadow-sm relative overflow-hidden">
+                  <div className="absolute right-0 top-0 w-32 h-32 bg-success/5 rounded-full blur-3xl"></div>
+                  <HardDrive className="h-8 w-8 text-success mb-4 relative z-10" />
                   <h3 className="text-lg font-bold mb-2">Google Drive API v3</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Leveraged for a continuous ingestion pipeline. Features **Robust Regex Validation** for Service Account JSONs to handle varied formatting and ensure configuration reliability.</p>
-                  <div className="text-xs font-mono bg-muted p-2 rounded">com.google.apis:google-api-services-drive</div>
+                  <p className="text-sm text-base-content/60 mb-4">Leveraged for a continuous ingestion pipeline. Features **Robust Regex Validation** for Service Account JSONs to handle varied formatting and ensure configuration reliability.</p>
+                  <div className="text-xs font-mono bg-base-300 p-2 rounded">com.google.apis:google-api-services-drive</div>
                 </div>
 
-                <div className="p-6 rounded-2xl border bg-card shadow-sm relative overflow-hidden">
-                  <div className="absolute right-0 top-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
-                  <Code2 className="h-8 w-8 text-blue-500 mb-4 relative z-10" />
+                <div className="p-6 rounded-2xl border bg-base-200 shadow-sm relative overflow-hidden">
+                  <div className="absolute right-0 top-0 w-32 h-32 bg-info/5 rounded-full blur-3xl"></div>
+                  <Code2 className="h-8 w-8 text-info mb-4 relative z-10" />
                    <h3 className="text-lg font-bold mb-2">Google Gemini 3 Series</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Master categorization engine and anomaly detection. Acts as a high-confidence fallback in the Bank Statement Hybrid Parser when table extraction yield is low (&lt; 80%).</p>
-                  <div className="text-xs font-mono bg-muted p-2 rounded">API Models: gemini-3-flash-preview, gemini-3.1-pro-preview</div>
+                  <p className="text-sm text-base-content/60 mb-4">Master categorization engine and anomaly detection. Acts as a high-confidence fallback in the Bank Statement Hybrid Parser when table extraction yield is low (&lt; 80%).</p>
+                  <div className="text-xs font-mono bg-base-300 p-2 rounded">API Models: gemini-3-flash-preview, gemini-3.1-pro-preview</div>
                 </div>
              </div>
            </div>
@@ -374,25 +374,25 @@ export default function SystemInformationPage() {
 
         {activeTab === "training" && (
           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-6 rounded-2xl border bg-card shadow-sm">
+            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                 <BrainCircuit className="h-5 w-5 text-indigo-500" />
+                 <BrainCircuit className="h-5 w-5 text-primary" />
                  OCR Training & Fine-tuning
                </h2>
-               <p className="text-muted-foreground mb-6">
+               <p className="text-base-content/60 mb-6">
                  FinSight allows you to improve the local OCR model's accuracy by training it on your specific receipt patterns. 
                  This "Human-in-the-loop" system converts your manual corrections into training data.
                </p>
                
-               <div className="bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-2xl p-10 text-center">
-                  <Cpu className="h-12 w-12 text-indigo-500/50 mx-auto mb-4" />
+               <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl p-10 text-center">
+                  <Cpu className="h-12 w-12 text-primary/50 mx-auto mb-4" />
                   <h3 className="text-lg font-bold">Launch Training Center</h3>
-                  <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+                  <p className="text-sm text-base-content/60 mb-6 max-w-md mx-auto">
                     Manage harvested golden samples, prepare datasets, and monitor the fine-tuning pipeline.
                   </p>
                   <a 
                     href="/system-information/training"
-                    className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+                    className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-primary-content rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
                   >
                     Go to Training Dashboard <ChevronRight className="h-4 w-4" />
                   </a>

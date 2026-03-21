@@ -300,7 +300,7 @@ export default function StatementsPage() {
             <FileText className="h-8 w-8 text-primary" />
             Upload Statements (PDF/CSV)
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-base-content/60 mt-2">
             Upload PDFs for Gemini AI parsing and auto-categorization.
           </p>
         </div>
@@ -316,7 +316,7 @@ export default function StatementsPage() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2"
+            className="btn btn-secondary btn-sm h-10 px-4 gap-2 whitespace-nowrap font-medium transition-colors"
           >
             {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             Upload Statement
@@ -325,7 +325,7 @@ export default function StatementsPage() {
           <button
             onClick={handleReconcile}
             disabled={isReconciling || isUploading}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 shadow-lg shadow-primary/20"
+            className="btn btn-primary btn-sm h-10 px-4 gap-2 whitespace-nowrap font-medium transition-colors shadow-lg shadow-primary/20"
           >
             {isReconciling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             Auto Reconcile
@@ -334,7 +334,7 @@ export default function StatementsPage() {
       </div>
 
       {showUploadStatus && uploadStatus && (
-        <div className="mb-8 p-6 rounded-xl border bg-card shadow-lg border-primary/20 animate-in fade-in slide-in-from-top-4">
+        <div className="mb-8 p-6 rounded-xl border bg-base-200 shadow-lg border-primary/30 animate-in fade-in slide-in-from-top-4">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
             
             <div className="flex-1 space-y-6">
@@ -347,39 +347,39 @@ export default function StatementsPage() {
                 
                 {/* Stage 1: Initializing */}
                 <div className="relative flex items-center gap-4">
-                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-muted-foreground"}`}>
+                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-base-100 ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-base-content/60"}`}>
                     {uploadStatus.stage === "INITIALIZING" ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                   </div>
                   <div>
-                    <h4 className={`text-sm font-semibold ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "text-foreground" : "text-muted-foreground"}`}>Secure Upload & Init</h4>
-                    {uploadStatus.stage === "INITIALIZING" && <p className="text-xs text-muted-foreground">{uploadStatus.message}</p>}
+                    <h4 className={`text-sm font-semibold ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "text-base-content" : "text-base-content/60"}`}>Secure Upload & Init</h4>
+                    {uploadStatus.stage === "INITIALIZING" && <p className="text-xs text-base-content/60">{uploadStatus.message}</p>}
                   </div>
                 </div>
 
                 {/* Stage 2: Extraction */}
                 <div className={`relative flex items-center gap-4 transition-all duration-500 ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "opacity-100 translate-y-0" : "opacity-50 translate-y-2"}`}>
-                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-muted-foreground"}`}>
-                    {uploadStatus.stage === "EXTRACTION" ? <Loader2 className="h-3 w-3 animate-spin" /> : (["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full bg-muted" />)}
+                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-base-100 ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-base-content/60"}`}>
+                    {uploadStatus.stage === "EXTRACTION" ? <Loader2 className="h-3 w-3 animate-spin" /> : (["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full bg-base-300" />)}
                   </div>
                   <div>
-                    <h4 className={`text-sm font-semibold ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "text-foreground" : "text-muted-foreground"}`}>AI Data Extraction</h4>
-                    {uploadStatus.stage === "EXTRACTION" && <p className="text-xs text-muted-foreground">{uploadStatus.message}</p>}
+                    <h4 className={`text-sm font-semibold ${["EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "text-base-content" : "text-base-content/60"}`}>AI Data Extraction</h4>
+                    {uploadStatus.stage === "EXTRACTION" && <p className="text-xs text-base-content/60">{uploadStatus.message}</p>}
                     {["PERSISTENCE", "COMPLETED"].includes(uploadStatus.stage) && uploadStatus.totalFiles > 0 && <p className="text-xs text-primary font-mono">Parsed {uploadStatus.totalFiles} transactions</p>}
                   </div>
                 </div>
 
                 {/* Stage 3: Persistence */}
                 <div className={`relative flex items-center gap-4 transition-all duration-500 delay-100 ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "opacity-100 translate-y-0" : "opacity-50 translate-y-2"}`}>
-                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-background ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "border-destructive text-destructive" : "border-primary text-primary") : "border-muted text-muted-foreground"}`}>
-                    {uploadStatus.stage === "PERSISTENCE" && uploadStatus.status !== "ERROR" ? <Loader2 className="h-3 w-3 animate-spin" /> : (uploadStatus.stage === "FAILED" ? <AlertCircle className="h-3 w-3" /> : (["COMPLETED"].includes(uploadStatus.stage) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full bg-muted" />))}
+                  <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-base-100 ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "border-destructive text-destructive" : "border-primary text-primary") : "border-muted text-base-content/60"}`}>
+                    {uploadStatus.stage === "PERSISTENCE" && uploadStatus.status !== "ERROR" ? <Loader2 className="h-3 w-3 animate-spin" /> : (uploadStatus.stage === "FAILED" ? <AlertCircle className="h-3 w-3" /> : (["COMPLETED"].includes(uploadStatus.stage) ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-2 w-2 rounded-full bg-base-300" />))}
                   </div>
                   <div className="flex-1">
-                    <h4 className={`text-sm font-semibold ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "text-destructive" : "text-foreground") : "text-muted-foreground"}`}>Database Verification</h4>
+                    <h4 className={`text-sm font-semibold ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "text-destructive" : "text-base-content") : "text-base-content/60"}`}>Database Verification</h4>
                     
                     {uploadStatus.stage === "PERSISTENCE" && (
                       <div className="mt-2 space-y-2">
-                        <p className="text-xs text-muted-foreground truncate">{uploadStatus.message}</p>
-                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <p className="text-xs text-base-content/60 truncate">{uploadStatus.message}</p>
+                        <div className="w-full bg-base-300 rounded-full h-1.5 overflow-hidden">
                           <div 
                             className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out" 
                             style={{ width: `${(uploadStatus.totalFiles > 0 ? (uploadStatus.processedFiles / uploadStatus.totalFiles) * 100 : 0)}%` }}
@@ -394,20 +394,20 @@ export default function StatementsPage() {
               </div>
             </div>
 
-            <div className="flex-shrink-0 w-full md:w-64 bg-muted/20 rounded-xl border border-border/50 p-4 animate-in fade-in slide-in-from-right-4">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Live Metrics</p>
+            <div className="flex-shrink-0 w-full md:w-64 bg-base-300/20 rounded-xl border border-base-content/20/50 p-4 animate-in fade-in slide-in-from-right-4">
+              <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-3">Live Metrics</p>
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Transactions Extracted</p>
+                  <p className="text-xs text-base-content/60">Transactions Extracted</p>
                   <p className="text-xl font-bold font-mono text-primary">{uploadStatus.totalFiles || 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Successfully Saved</p>
-                  <p className="text-xl font-bold font-mono text-emerald-500">{uploadStatus.processedFiles || 0}</p>
+                  <p className="text-xs text-base-content/60">Successfully Saved</p>
+                  <p className="text-xl font-bold font-mono text-success">{uploadStatus.processedFiles || 0}</p>
                 </div>
               </div>
               {uploadStatus.status === "COMPLETED" && (
-                  <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-center gap-2 text-emerald-500">
+                  <div className="mt-4 pt-3 border-t border-base-content/20/50 flex items-center justify-center gap-2 text-success">
                       <CheckCircle2 className="h-4 w-4" />
                       <span className="text-sm font-semibold">Upload Finished</span>
                   </div>
@@ -419,42 +419,42 @@ export default function StatementsPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 rounded-xl border bg-card/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Transactions</p>
+        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">
+          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Total Transactions</p>
           <p className="text-2xl font-bold">{totalElements}</p>
         </div>
-        <div className="p-4 rounded-xl border bg-card/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Unreconciled</p>
+        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">
+          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Unreconciled</p>
           <p className="text-2xl font-bold text-destructive">{unReconciledCount}</p>
         </div>
-        <div className="p-4 rounded-xl border bg-card/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">AI Accuracy Target</p>
+        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 transition-all hover:scale-[1.02]">
+          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">AI Accuracy Target</p>
           <p className="text-2xl font-bold text-primary">High (Gemini Pro)</p>
         </div>
       </div>
 
       <div className="flex border-b border-primary/10 mb-6 font-medium text-sm">
         <button 
-          className={`px-6 py-3 transition-colors ${activeTab === 'transactions' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-6 py-3 transition-colors ${activeTab === 'transactions' ? 'border-b-2 border-primary text-primary' : 'text-base-content/60 hover:text-base-content'}`}
           onClick={() => setActiveTab('transactions')}
         >
           Transactions
         </button>
         <button 
-          className={`px-6 py-3 transition-colors flex items-center gap-2 ${activeTab === 'issues' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-6 py-3 transition-colors flex items-center gap-2 ${activeTab === 'issues' ? 'border-b-2 border-primary text-primary' : 'text-base-content/60 hover:text-base-content'}`}
           onClick={() => setActiveTab('issues')}
         >
           Issues & Discrepancies
-          {audits.length > 0 && <span className="bg-destructive text-destructive-foreground text-[10px] px-2 py-0.5 rounded-full font-bold">{audits.length}</span>}
+          {audits.length > 0 && <span className="bg-destructive text-error-content text-[10px] px-2 py-0.5 rounded-full font-bold">{audits.length}</span>}
         </button>
       </div>
 
-      <div className="rounded-xl border border-primary/10 bg-card overflow-hidden shadow-lg">
+      <div className="rounded-xl border border-primary/10 bg-base-200 overflow-hidden shadow-lg">
         {activeTab === 'transactions' ? (
           <div>
-            <div className="p-4 border-b border-primary/10 flex justify-between items-center bg-muted/20">
+            <div className="p-4 border-b border-primary/10 flex justify-between items-center bg-base-300/20">
                <select 
-                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  className="h-9 rounded-md border border-input bg-base-100 px-3 py-1 text-sm shadow-sm"
                   value={filterReconciled}
                   onChange={(e) => { setFilterReconciled(e.target.value); setPage(0); }}
                >
@@ -465,7 +465,7 @@ export default function StatementsPage() {
             </div>
             <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+            <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
               <tr>
                 <th scope="col" className="px-6 py-4 font-medium">Date</th>
                 <th scope="col" className="px-6 py-4 font-medium">Description</th>
@@ -479,59 +479,59 @@ export default function StatementsPage() {
             <tbody className="divide-y divide-primary/5">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-6 py-10 text-center text-base-content/60">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     Loading transactions...
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-6 py-10 text-center text-base-content/60">
                     <AlertCircle className="h-6 w-6 mx-auto mb-2 opacity-50" />
                     No bank transactions found. Upload a PDF statement.
                   </td>
                 </tr>
               ) : (
                 transactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-muted/30 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                  <tr key={txn.id} className="hover:bg-base-300/30 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap text-base-content/60">
                       {txn.txDate}
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium truncate max-w-[300px]" title={txn.description}>
                         {txn.description}
                       </div>
-                      <div className="text-xs text-muted-foreground font-mono mt-1 opacity-50">Ref: {txn.referenceNumber}</div>
+                      <div className="text-xs text-base-content/60 font-mono mt-1 opacity-50">Ref: {txn.referenceNumber}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-medium text-primary/80">{txn.vendor || 'Unknown'}</span>
                     </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-right font-mono font-bold ${txn.type === 'DEBIT' ? 'text-destructive' : 'text-emerald-500'}`}>
+                    <td className={`px-6 py-4 whitespace-nowrap text-right font-mono font-bold ${txn.type === 'DEBIT' ? 'text-destructive' : 'text-success'}`}>
                        {txn.type === 'DEBIT' ? '-' : '+'}{formatCurrency(txn.amount, currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {txn.category ? (
                         <div className="flex flex-col items-start gap-1">
-                          <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wide border border-primary/20">
+                          <span className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold tracking-wide border border-primary/30">
                             {txn.category.name}
                           </span>
                           {txn.category.parentName && (
-                            <span className="text-[9px] text-muted-foreground italic ml-1 leading-none">
+                            <span className="text-[9px] text-base-content/60 italic ml-1 leading-none">
                               {txn.category.parentName}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground italic text-xs">Uncategorized</span>
+                        <span className="text-base-content/60 italic text-xs">Uncategorized</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       {txn.reconciled ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold tracking-wide border border-emerald-500/20">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-[10px] font-bold tracking-wide border border-success/20">
                           <CheckCircle2 className="h-3 w-3" /> Linked
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold tracking-wide border border-amber-500/20">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/10 text-warning text-[10px] font-bold tracking-wide border border-warning/20">
                           <Clock className="h-3 w-3" /> Pending
                         </span>
                       )}
@@ -549,7 +549,7 @@ export default function StatementsPage() {
                               type: txn.type || "DEBIT"
                             });
                           }}
-                          className="inline-flex flex-col items-center justify-center p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          className="inline-flex flex-col items-center justify-center p-2 rounded-md hover:bg-base-300 text-base-content/60 hover:text-base-content transition-colors"
                           title="Edit extraction"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -563,20 +563,20 @@ export default function StatementsPage() {
           </table>
           
           {totalPages > 1 && (
-            <div className="p-4 border-t border-primary/10 flex items-center justify-between bg-muted/10">
-              <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
+            <div className="p-4 border-t border-primary/10 flex items-center justify-between bg-base-300/10">
+              <span className="text-sm text-base-content/60">Page {page + 1} of {totalPages}</span>
               <div className="flex space-x-2">
                 <button 
                   onClick={() => setPage(p => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1 text-sm border bg-background rounded-md shadow-sm disabled:opacity-50"
+                  className="px-3 py-1 text-sm border bg-base-100 rounded-md shadow-sm disabled:opacity-50"
                 >
                   Previous
                 </button>
                 <button 
                   onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="px-3 py-1 text-sm border bg-background rounded-md shadow-sm disabled:opacity-50"
+                  className="px-3 py-1 text-sm border bg-base-100 rounded-md shadow-sm disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -588,7 +588,7 @@ export default function StatementsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+              <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
                 <tr>
                   <th scope="col" className="px-6 py-4 font-medium">Issue Detail</th>
                   <th scope="col" className="px-6 py-4 font-medium">Bank Transaction</th>
@@ -599,35 +599,35 @@ export default function StatementsPage() {
               <tbody className="divide-y divide-primary/5">
                 {audits.length === 0 ? (
                    <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
-                      <CheckCircle2 className="h-6 w-6 mx-auto mb-2 text-emerald-500 opacity-80" />
+                    <td colSpan={4} className="px-6 py-10 text-center text-base-content/60">
+                      <CheckCircle2 className="h-6 w-6 mx-auto mb-2 text-success opacity-80" />
                       Hooray! No pending discrepancies found.
                     </td>
                   </tr>
                 ) : (
                   audits.map((audit) => (
-                    <tr key={audit.id} className="hover:bg-muted/30 transition-colors">
+                    <tr key={audit.id} className="hover:bg-base-300/30 transition-colors">
                       <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 rounded-md text-xs font-bold mb-2 ${audit.issueType === 'SUGGESTED_MATCH' ? 'bg-amber-500/10 text-amber-500' : 'bg-destructive/10 text-destructive'}`}>
+                        <span className={`inline-flex px-2 py-1 rounded-md text-xs font-bold mb-2 ${audit.issueType === 'SUGGESTED_MATCH' ? 'bg-warning/10 text-warning' : 'bg-destructive/10 text-destructive'}`}>
                           {audit.issueType}
                         </span>
-                        <p className="text-xs text-muted-foreground">{audit.issueDescription || audit.description}</p>
+                        <p className="text-xs text-base-content/60">{audit.issueDescription || audit.description}</p>
                       </td>
                       <td className="px-6 py-4">
                         {audit.transaction ? (
                           <div className="text-sm">
                             <span className="font-medium">{audit.transaction.description}</span>
                             <div className="text-destructive font-mono text-xs mt-1">-{formatCurrency(audit.transaction.amount, currency)}</div>
-                            <div className="text-muted-foreground text-[10px]">{audit.transaction.txDate}</div>
+                            <div className="text-base-content/60 text-[10px]">{audit.transaction.txDate}</div>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground italic">N/A</span>
+                          <span className="text-base-content/60 italic">N/A</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         {audit.transaction && (
                           <select 
-                            className={`w-full flex h-9 w-full rounded-md border bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${audit.issueType === 'SUGGESTED_MATCH' ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-input'}`}
+                            className={`w-full flex h-9 w-full rounded-md border bg-base-100 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${audit.issueType === 'SUGGESTED_MATCH' ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-input'}`}
                             value={selectedReceiptId[audit.id] !== undefined ? selectedReceiptId[audit.id] : (audit.receipt ? audit.receipt.id.toString() : "")}
                             onChange={(e) => setSelectedReceiptId({...selectedReceiptId, [audit.id]: e.target.value})}
                           >
@@ -654,13 +654,13 @@ export default function StatementsPage() {
                                type: audit.transaction!.type || "DEBIT"
                              });
                            }}
-                           className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3"
+                           className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-base-100 hover:bg-accent hover:text-accent-content h-8 px-3"
                           >
                             <Edit2 className="w-3 h-3 mr-1" /> Edit Extract
                           </button>
                           <button
                            onClick={() => handleManuallyLink(audit.id, audit.transaction?.id, audit.receipt?.id)}
-                           className={`inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 ${audit.issueType === 'SUGGESTED_MATCH' ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                           className={`inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 ${audit.issueType === 'SUGGESTED_MATCH' ? 'bg-success text-primary-content hover:bg-emerald-600 shadow-sm shadow-emerald-500/20' : 'bg-primary text-primary-content hover:bg-primary/90'}`}
                           >
                             <Check className="w-3 h-3 mr-1" /> {audit.issueType === 'SUGGESTED_MATCH' ? 'Approve Match' : 'Manual Link'}
                           </button>
@@ -668,7 +668,7 @@ export default function StatementsPage() {
                         )}
                         <button
                          onClick={() => handleIgnoreAudit(audit.id)}
-                         className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 px-3 mt-2"
+                         className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-base-100 hover:bg-accent hover:text-accent-content h-8 px-3 mt-2"
                         >
                           <X className="w-3 h-3 mr-1" /> Mark Done
                         </button>
@@ -684,26 +684,26 @@ export default function StatementsPage() {
 
       {editingTxn && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-card w-full max-w-md rounded-xl shadow-2xl overflow-hidden border">
+          <div className="bg-base-200 w-full max-w-md rounded-xl shadow-2xl overflow-hidden border">
             <div className="p-6">
               <h3 className="text-lg font-bold mb-4">Edit Transaction Extraction</h3>
-              <p className="text-sm text-muted-foreground mb-4">If the AI extracted the wrong amount, vendor, or date, you can fix it here before linking.</p>
+              <p className="text-sm text-base-content/60 mb-4">If the AI extracted the wrong amount, vendor, or date, you can fix it here before linking.</p>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Date</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Date</label>
                   <input
                     type="date"
-                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                    className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
                     value={editForm.txDate}
                     onChange={(e) => setEditForm({...editForm, txDate: e.target.value})}
                   />
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
+                    <label className="block text-xs font-medium text-base-content/60 mb-1">Type</label>
                     <select
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                      className="w-full h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
                       value={editForm.type}
                       onChange={(e) => setEditForm({...editForm, type: e.target.value})}
                     >
@@ -712,29 +712,29 @@ export default function StatementsPage() {
                     </select>
                   </div>
                   <div className="flex-1">
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount</label>
+                    <label className="block text-xs font-medium text-base-content/60 mb-1">Amount</label>
                     <input
                       type="number"
                       step="0.01"
-                      className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                      className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
                       value={editForm.amount}
                       onChange={(e) => setEditForm({...editForm, amount: parseFloat(e.target.value)})}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Vendor/Counterparty</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Vendor/Counterparty</label>
                   <input
                     type="text"
-                    className="w-full flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                    className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
                     value={editForm.vendor}
                     onChange={(e) => setEditForm({...editForm, vendor: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+                  <label className="block text-xs font-medium text-base-content/60 mb-1">Description</label>
                   <textarea
-                    className="w-full flex rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                    className="w-full flex rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
                     rows={2}
                     value={editForm.description}
                     onChange={(e) => setEditForm({...editForm, description: e.target.value})}
@@ -745,14 +745,14 @@ export default function StatementsPage() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={() => setEditingTxn(null)}
-                  className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-muted"
+                  className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-base-300"
                   disabled={isSavingTxn}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveTransaction}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90"
+                  className="px-4 py-2 bg-primary text-primary-content rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90"
                   disabled={isSavingTxn}
                 >
                   {isSavingTxn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

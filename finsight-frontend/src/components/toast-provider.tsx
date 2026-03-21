@@ -47,15 +47,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) {
   const icons = {
-    success: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
+    success: <CheckCircle2 className="h-5 w-5 text-success" />,
     error: <AlertCircle className="h-5 w-5 text-destructive" />,
     info: <Info className="h-5 w-5 text-primary" />,
   };
 
   const bgColors = {
-    success: "bg-emerald-500/10 border-emerald-500/20",
+    success: "bg-success/10 border-success/20",
     error: "bg-destructive/10 border-destructive/20",
-    info: "bg-primary/10 border-primary/20",
+    info: "bg-primary/20 border-primary/30",
   };
 
   return (

@@ -35,11 +35,11 @@ const ISSUE_TYPES = [
 ];
 
 function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null || score === undefined) return <span className="text-muted-foreground text-xs">—</span>;
+  if (score === null || score === undefined) return <span className="text-base-content/60 text-xs">—</span>;
   const pct = Math.round(score);
-  const color = pct >= 80 ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-              : pct >= 50 ? "text-amber-400 bg-amber-500/10 border-amber-500/30"
-              : "text-muted-foreground bg-muted/30 border-muted/30";
+  const color = pct >= 80 ? "text-success bg-success/10 border-success/30"
+              : pct >= 50 ? "text-warning bg-warning/10 border-amber-500/30"
+              : "text-base-content/60 bg-base-300/30 border-muted/30";
   return (
     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${color}`}>
       {pct}/100
@@ -49,9 +49,9 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 function MatchTypeBadge({ type }: { type: string | null }) {
   if (!type) return null;
-  const color = type === "EXACT" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
-              : type === "FUZZY" ? "text-amber-400 border-amber-500/30 bg-amber-500/10"
-              : "text-muted-foreground border-muted/30 bg-muted/10";
+  const color = type === "EXACT" ? "text-success border-success/30 bg-success/10"
+              : type === "FUZZY" ? "text-warning border-amber-500/30 bg-warning/10"
+              : "text-base-content/60 border-muted/30 bg-base-300/10";
   return (
     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${color}`}>
       {type}
@@ -152,13 +152,13 @@ export default function ReconciliationPage() {
             <CopyCheck className="h-8 w-8 text-primary" />
             Reconciliation Engine
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-base-content/60 mt-2">
             Review and resolve flagged discrepancies. Similarity scoring helps identify fuzzy matches.
           </p>
         </div>
         <button
           onClick={handleExportCsv}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 text-sm font-medium hover:bg-primary/20 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary border border-primary/30 text-sm font-medium hover:bg-primary/20 transition-colors"
         >
           <Download className="h-4 w-4" />
           Export CSV
@@ -167,27 +167,27 @@ export default function ReconciliationPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="p-4 rounded-xl border bg-card/50 backdrop-blur-sm border-destructive/20 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Attention Required</p>
+        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-destructive/20 transition-all hover:scale-[1.02]">
+          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Attention Required</p>
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <p className="text-3xl font-bold text-destructive">{stats.unresolved}</p>
           </div>
         </div>
-        <div className="p-4 rounded-xl border bg-card/50 backdrop-blur-sm border-emerald-500/20 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Manually Resolved</p>
-          <p className="text-3xl font-bold text-emerald-500">{stats.resolved}</p>
+        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-success/20 transition-all hover:scale-[1.02]">
+          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Manually Resolved</p>
+          <p className="text-3xl font-bold text-success">{stats.resolved}</p>
         </div>
       </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 mb-4">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        <label className="text-sm text-muted-foreground">Filter by type:</label>
+        <Filter className="h-4 w-4 text-base-content/60" />
+        <label className="text-sm text-base-content/60">Filter by type:</label>
         <select
           value={issueTypeFilter}
           onChange={e => setIssueTypeFilter(e.target.value)}
-          className="text-sm rounded-lg bg-card border border-border px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          className="text-sm rounded-lg bg-base-200 border border-base-content/20 px-3 py-1.5 text-base-content focus:outline-none focus:ring-1 focus:ring-primary"
         >
           {ISSUE_TYPES.map(t => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -196,7 +196,7 @@ export default function ReconciliationPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-destructive/20 bg-card overflow-hidden shadow-lg shadow-destructive/5">
+      <div className="rounded-xl border border-destructive/20 bg-base-200 overflow-hidden shadow-lg shadow-destructive/5">
         <div className="p-4 bg-destructive/10 border-b border-destructive/20">
           <h2 className="font-semibold text-destructive inline-flex items-center gap-2">
             <AlertCircle className="h-4 w-4" /> Audit Trail
@@ -204,7 +204,7 @@ export default function ReconciliationPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+            <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
               <tr>
                 <th scope="col" className="px-6 py-4 font-medium">Issue Detail</th>
                 <th scope="col" className="px-6 py-4 font-medium">Type</th>
@@ -217,27 +217,27 @@ export default function ReconciliationPage() {
             <tbody className="divide-y divide-primary/5">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-6 py-10 text-center text-base-content/60">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     Loading exceptions...
                   </td>
                 </tr>
               ) : unresolvedAudits.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
-                    <CopyCheck className="h-8 w-8 mx-auto mb-3 text-emerald-500/50" />
-                    <p className="text-emerald-500 font-medium text-lg">All caught up!</p>
+                  <td colSpan={6} className="px-6 py-10 text-center text-base-content/60">
+                    <CopyCheck className="h-8 w-8 mx-auto mb-3 text-success/50" />
+                    <p className="text-success font-medium text-lg">All caught up!</p>
                     <p>No unresolved reconciliation issues found.</p>
                   </td>
                 </tr>
               ) : (
                 unresolvedAudits.map((audit) => (
-                  <tr key={audit.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={audit.id} className="hover:bg-base-300/30 transition-colors">
                     <td className="px-6 py-4 max-w-[200px]">
-                      <span className="text-xs font-medium text-amber-500 block mb-1">
+                      <span className="text-xs font-medium text-warning block mb-1">
                         {new Date(audit.createdAt).toLocaleDateString()}
                       </span>
-                      <span className="text-xs text-muted-foreground line-clamp-2">{audit.issueDescription}</span>
+                      <span className="text-xs text-base-content/60 line-clamp-2">{audit.issueDescription}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 rounded-full bg-destructive/10 text-destructive text-[10px] font-bold tracking-wide border border-destructive/20">
@@ -246,28 +246,28 @@ export default function ReconciliationPage() {
                     </td>
                     <td className="px-6 py-4">
                       {audit.transaction ? (
-                        <div className="rounded-md border p-2 bg-muted/20 border-dotted border-muted-foreground/30">
+                        <div className="rounded-md border p-2 bg-base-300/20 border-dotted border-muted-foreground/30">
                           <div className="font-medium text-xs truncate max-w-[150px]" title={audit.transaction.description}>{audit.transaction.description}</div>
-                          <div className="text-xs mt-1 text-muted-foreground flex justify-between">
+                          <div className="text-xs mt-1 text-base-content/60 flex justify-between">
                             <span>{audit.transaction.txDate}</span>
                             <span className="font-mono text-destructive">-{formatCurrency(audit.transaction.amount, currency)}</span>
                           </div>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-xs italic opacity-50">None</span>
+                        <span className="text-base-content/60 text-xs italic opacity-50">None</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       {audit.receipt ? (
-                        <div className="rounded-md border p-2 bg-muted/20 border-dotted border-muted-foreground/30">
+                        <div className="rounded-md border p-2 bg-base-300/20 border-dotted border-muted-foreground/30">
                           <div className="font-medium text-xs truncate max-w-[150px]" title={audit.receipt.vendor}>{audit.receipt.vendor}</div>
-                          <div className="text-xs mt-1 text-muted-foreground flex justify-between">
+                          <div className="text-xs mt-1 text-base-content/60 flex justify-between">
                             <span>{audit.receipt.date}</span>
-                            <span className="font-mono text-emerald-500">+{formatCurrency(audit.receipt.amount, currency)}</span>
+                            <span className="font-mono text-success">+{formatCurrency(audit.receipt.amount, currency)}</span>
                           </div>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-xs italic opacity-50">None</span>
+                        <span className="text-base-content/60 text-xs italic opacity-50">None</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -280,7 +280,7 @@ export default function ReconciliationPage() {
                       <button
                         onClick={() => handleResolve(audit.id)}
                         disabled={resolvingId === audit.id}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors disabled:opacity-50"
                       >
                         {resolvingId === audit.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
