@@ -35,19 +35,8 @@ public class GoogleFormsClient {
 
     public Forms getFormsService(String serviceAccountJson) throws GeneralSecurityException, IOException {
         final HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        GoogleCredentials credentials;
-        
-        if (serviceAccountJson != null && !serviceAccountJson.trim().isEmpty()) {
-            credentials = GoogleCredentials
-                    .fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes(StandardCharsets.UTF_8)))
-                    .createScoped(SCOPES);
-            if (credentials instanceof com.google.auth.oauth2.ServiceAccountCredentials) {
-                log.info("Using Service Account Identity: {}", ((com.google.auth.oauth2.ServiceAccountCredentials)credentials).getClientEmail());
-            }
-        } else {
-            // Fallback to application default credentials if no JSON provided
-            credentials = GoogleCredentials.getApplicationDefault().createScoped(SCOPES);
-        }
+        GoogleCredentials credentials = com.finsight.backend.util.GoogleCredentialsResolver
+                .resolve(serviceAccountJson, SCOPES);
         
         return new Forms.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
                 .setApplicationName(APPLICATION_NAME)

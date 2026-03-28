@@ -27,16 +27,10 @@ public class GoogleDriveClient {
 
     public Drive getDriveService(String serviceAccountJson) throws GeneralSecurityException, IOException {
         final HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        if (serviceAccountJson != null && !serviceAccountJson.trim().isEmpty()) {
-            GoogleCredentials credentials = GoogleCredentials
-                    .fromStream(new java.io.ByteArrayInputStream(serviceAccountJson.getBytes()))
-                    .createScoped(
-                            java.util.Collections.singletonList("https://www.googleapis.com/auth/drive"));
-            return new Drive.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
-        }
-        return new Drive.Builder(httpTransport, JSON_FACTORY, null)
+        GoogleCredentials credentials = com.finsight.backend.util.GoogleCredentialsResolver
+                .resolve(serviceAccountJson, java.util.Collections.singletonList("https://www.googleapis.com/auth/drive"));
+        
+        return new Drive.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
                 .setApplicationName(APPLICATION_NAME)
                 .build();
     }

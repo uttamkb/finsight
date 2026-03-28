@@ -39,3 +39,4 @@ credentials.json
 # Backups
 *.zip
 *.bak
+*.json

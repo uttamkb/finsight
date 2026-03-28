@@ -33,15 +33,8 @@ public class GoogleSheetsClient {
 
     public Sheets getSheetsService(String serviceAccountJson) throws GeneralSecurityException, IOException {
         final HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        GoogleCredentials credentials;
-        
-        if (serviceAccountJson != null && !serviceAccountJson.trim().isEmpty()) {
-            credentials = GoogleCredentials
-                    .fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes(StandardCharsets.UTF_8)))
-                    .createScoped(SCOPES);
-        } else {
-            credentials = GoogleCredentials.getApplicationDefault().createScoped(SCOPES);
-        }
+        GoogleCredentials credentials = com.finsight.backend.util.GoogleCredentialsResolver
+                .resolve(serviceAccountJson, SCOPES);
         
         return new Sheets.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
                 .setApplicationName(APPLICATION_NAME)
