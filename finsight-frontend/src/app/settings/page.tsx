@@ -180,172 +180,174 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-10 px-4 max-w-4xl">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <SettingsIcon className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
+    <div className="container mx-auto py-10 px-4 max-w-5xl animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+        <div className="flex items-center gap-6">
+          <div className="p-4 bg-primary/10 rounded-3xl glow-primary">
+            <SettingsIcon className="h-10 w-10 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight leading-tight uppercase">Base Configuration</h1>
+            <p className="text-base-content/40 font-bold uppercase tracking-[0.2em] text-[10px] mt-1">Neural Core Configuration</p>
+          </div>
         </div>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="inline-flex items-center gap-2 px-6 py-2 bg-primary text-primary-content rounded-md font-medium hover:bg-primary/90 transition-all disabled:opacity-50"
+          className="btn btn-primary h-14 px-10 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
         >
-          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {isSaving ? "Saving..." : "Save Configuration"}
+          {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+          {isSaving ? "Syncing..." : "Sync Config"}
         </button>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         {/* Apartment Branding */}
-        <div className="rounded-xl border bg-base-200 p-6 shadow-sm border-primary/10">
-          <div className="flex items-center gap-2 mb-6 border-b border-primary/10 pb-4">
-            <Layout className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Apartment Branding</h2>
+        <div className="glass-panel p-10 rounded-[2.5rem] shadow-2xl border-primary/5 transition-all group overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 group-hover:rotate-0 transition-all duration-1000"><Layout className="h-32 w-32" /></div>
+          <div className="flex items-center gap-4 mb-10 border-b border-base-content/5 pb-6">
+            <Layout className="h-6 w-6 text-primary shadow-primary" />
+            <h2 className="text-xl font-black uppercase tracking-tighter">Entity Identity</h2>
           </div>
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">Apartment / Association Name</label>
+          <div className="space-y-8 relative">
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">Association Alpha Name</label>
               <input
                 type="text"
                 value={config.apartmentName}
                 onChange={(e) => setConfig({ ...config, apartmentName: e.target.value })}
-                className="flex h-12 w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                placeholder="e.g., Skyline Residents Association"
+                className="w-full h-14 px-6 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-black text-lg shadow-inner"
+                placeholder="SKYLINE_PRIMARY_RE_NODE"
               />
             </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">Default Currency</label>
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">Fiscal Unit (Currency)</label>
               <select
                 value={config.currency}
                 onChange={(e) => setConfig({ ...config, currency: e.target.value })}
-                className="flex h-12 w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all cursor-pointer"
+                className="w-full h-14 px-6 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-black text-xs uppercase tracking-widest shadow-inner appearance-none cursor-pointer"
               >
-                <option value="INR">₹ INR - Indian Rupee</option>
-                <option value="USD">$ USD - US Dollar</option>
-                <option value="EUR">€ EUR - Euro</option>
-                <option value="GBP">£ GBP - British Pound</option>
+                <option value="INR">₹ INR - RUPEE_UNIT</option>
+                <option value="USD">$ USD - DOLLAR_UNIT</option>
+                <option value="EUR">€ EUR - EURO_UNIT</option>
+                <option value="GBP">£ GBP - POUND_UNIT</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* AI & OCR Configuration */}
-        <div className="rounded-xl border bg-base-200 p-6 shadow-sm border-primary/10">
-          <div className="flex items-center gap-2 mb-6 border-b border-primary/10 pb-4">
-            <Key className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">AI & OCR Configuration</h2>
+        <div className="glass-panel p-10 rounded-[2.5rem] shadow-2xl border-primary/5 transition-all group overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 -rotate-12 group-hover:rotate-0 transition-all duration-1000"><Key className="h-32 w-32" /></div>
+          <div className="flex items-center gap-4 mb-10 border-b border-base-content/5 pb-6">
+            <Key className="h-6 w-6 text-primary shadow-primary" />
+            <h2 className="text-xl font-black uppercase tracking-tighter">Neural Ops</h2>
           </div>
-          <div className="space-y-6">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">Gemini API Key</label>
+          <div className="space-y-10 relative">
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">Gemini API Access Key</label>
               <input
                 type="password"
                 value={config.geminiApiKey}
                 onChange={(e) => setConfig({ ...config, geminiApiKey: e.target.value })}
-                className="flex h-12 w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                className="w-full h-14 px-6 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-mono text-sm tracking-widest shadow-inner group-hover:border-primary/20"
                 placeholder="••••••••••••••••••••••••••••"
               />
-              <p className="text-xs text-base-content/60">Used for high-accuracy fallback and intelligent categorization.</p>
+              <p className="text-[10px] font-bold text-base-content/30 uppercase tracking-widest pl-1 mt-1 italic">Authorized for deep-layer categorization & neural fallback.</p>
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">OCR Processing Mode</label>
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">OCR Processing Vector</label>
               <select
                 value={config.ocrMode}
                 onChange={(e) => setConfig({ ...config, ocrMode: e.target.value })}
-                className="flex h-12 w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all cursor-pointer"
+                className="w-full h-14 px-6 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-black text-xs uppercase tracking-widest shadow-inner appearance-none cursor-pointer"
               >
-                <option value="MODE_LOW_COST">Low Cost (Local TrOCR Only)</option>
-                <option value="MODE_HYBRID">Hybrid (Local + Gemini Fallback)</option>
-                <option value="MODE_HIGH_ACCURACY">Max Accuracy (Gemini Only)</option>
+                <option value="MODE_LOW_COST">ECO_MODE (Local TrOCR Only)</option>
+                <option value="MODE_HYBRID">SYNAPSE_MODE (Local + Gemini Fallback)</option>
+                <option value="MODE_HIGH_ACCURACY">MAX_INTELLIGENCE (Gemini Only)</option>
               </select>
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">UI Theme Preference</label>
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">Interface Spectrum (Theme)</label>
               <select
                 value={config.themePreference}
                 onChange={(e) => setConfig({ ...config, themePreference: e.target.value })}
-                className="flex h-12 w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all cursor-pointer"
+                className="w-full h-14 px-6 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-black text-xs uppercase tracking-widest shadow-inner appearance-none cursor-pointer"
               >
-                <option value="DARK">Dark (Neon Accents)</option>
-                <option value="LIGHT">Light (Clean Corporate)</option>
+                <option value="DARK">CYBER_DARK (Neon Precision)</option>
+                <option value="LIGHT">STARK_LIGHT (Corporate Logic)</option>
               </select>
             </div>
           </div>
         </div>
 
         {/* Connectivity */}
-        <div className="rounded-xl border bg-base-200 p-6 shadow-sm border-primary/10">
-          <div className="flex items-center gap-2 mb-6 border-b border-primary/10 pb-4">
-            <Globe className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Connectivity</h2>
+        <div className="glass-panel p-10 rounded-[2.5rem] shadow-2xl border-primary/5 transition-all group overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-45 group-hover:rotate-0 transition-all duration-1000"><Globe className="h-32 w-32" /></div>
+          <div className="flex items-center gap-4 mb-10 border-b border-base-content/5 pb-6">
+            <Globe className="h-6 w-6 text-primary shadow-primary" />
+            <h2 className="text-xl font-black uppercase tracking-tighter">Remote Link</h2>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-8 relative">
             {lastSync && (
-              <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10 mb-2">
-                <AlertCircle className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">
-                  Last successfully synchronized: <span className="text-base-content">{new Date(lastSync).toLocaleString()}</span>
+              <div className="flex items-center gap-4 p-6 bg-primary/5 rounded-2xl border border-primary/10 mb-4 glow-primary/5">
+                <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+                <span className="text-[11px] font-black uppercase tracking-widest text-primary">
+                  Last Uplink Synchronicity: <span className="font-mono text-base-content/40 ml-2 italic">{new Date(lastSync).toLocaleString()}</span>
                 </span>
               </div>
             )}
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">Google Drive Receipts Folder URL</label>
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">Drive Vector URL (Receipts)</label>
               <input
                 type="text"
                 value={config.driveFolderUrl}
                 onChange={(e) => setConfig({ ...config, driveFolderUrl: e.target.value })}
-                className="flex h-12 w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                placeholder="https://drive.google.com/drive/folders/..."
+                className="w-full h-14 px-6 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-black text-[11px] tracking-tight shadow-inner"
+                placeholder="https://drive.google.com/drive/folders/TARGET_DIRECTORY"
               />
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-base-content/60">Google Service Account JSON</label>
+            <div className="grid gap-3">
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] pl-1">Service Account Authentication Config (JSON)</label>
               <textarea
                 value={config.serviceAccountJson}
                 onChange={(e) => setConfig({ ...config, serviceAccountJson: e.target.value })}
-                className="flex min-h-[120px] w-full rounded-lg border border-input bg-base-100/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all font-mono"
-                placeholder='{
-  "type": "service_account",
-  "project_id": "your-project",
-  "private_key_id": "...",
-  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-  "client_email": "..."
-}'
+                className="textarea w-full min-h-[160px] px-6 py-4 rounded-2xl bg-base-100/50 border border-base-content/5 focus:ring-2 focus:ring-primary outline-none transition-all font-mono text-[10px] leading-relaxed shadow-inner"
+                placeholder='{ "type": "service_account", ... }'
               />
-              <p className="text-xs text-base-content/60">
-                Required to programmatically access your Google Drive folder. Ensure the Service Account Email is shared as an "Editor" on the Drive Folder.
+              <p className="text-[10px] font-bold text-base-content/30 uppercase tracking-widest pl-1 mt-1 italic">
+                Authorized credentials for programmatic Drive extraction. Target folder must grant 'EDITOR' access to the Service Identity.
               </p>
             </div>
           </div>
         </div>
 
         {/* Data Management */}
-        <div className="rounded-xl border bg-base-200 p-6 shadow-sm border-primary/10">
-          <div className="flex items-center gap-2 mb-6 border-b border-primary/10 pb-4">
-            <Database className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Data Management</h2>
+        <div className="glass-panel p-10 rounded-[2.5rem] shadow-2xl border-primary/5 transition-all overflow-hidden relative">
+          <div className="flex items-center gap-4 mb-10 border-b border-base-content/5 pb-6">
+            <Database className="h-6 w-6 text-primary shadow-primary" />
+            <h2 className="text-xl font-black uppercase tracking-tighter">Ledger Management</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-medium text-base-content/60 uppercase tracking-wider">Export</h3>
-              <p className="text-xs text-base-content/60 mb-2">Save all your data to a portable JSON file for backup.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            <div className="flex flex-col gap-5 p-6 rounded-2xl bg-base-100/30 border border-base-content/5 hover:bg-base-100/50 transition-all text-center">
+              <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Archive Sync</h3>
+              <p className="text-[10px] font-bold text-base-content/30 uppercase tracking-[0.15em] mb-4 leading-relaxed">Synthesize portable JSON backup of core neural ledger.</p>
               <button
                 onClick={handleExport}
                 disabled={isExporting}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-base-100 border border-primary/30 text-base-content rounded-lg hover:bg-primary/5 transition-all text-sm font-medium"
+                className="btn btn-outline h-12 rounded-xl font-black uppercase text-[10px] tracking-widest border-primary/20 hover:bg-primary hover:text-white transition-all"
               >
-                {isExporting ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Download className="h-4 w-4 text-primary" />}
-                {isExporting ? "Exporting..." : "Download Backup"}
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {isExporting ? "Compiling..." : "Export"}
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 border-l border-r border-primary/5 px-6">
-              <h3 className="text-sm font-medium text-base-content/60 uppercase tracking-wider">Import</h3>
-              <p className="text-xs text-base-content/60 mb-2">Restore data from a previously exported JSON file.</p>
+            <div className="flex flex-col gap-5 p-6 rounded-2xl bg-base-100/30 border border-base-content/5 hover:bg-base-100/50 transition-all text-center">
+              <h3 className="text-[10px] font-black text-info uppercase tracking-[0.2em]">Matrix Restore</h3>
+              <p className="text-[10px] font-bold text-base-content/30 uppercase tracking-[0.15em] mb-4 leading-relaxed">Restore ledger integrity from archived transactional signatures.</p>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -356,30 +358,30 @@ export default function SettingsPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-base-100 border border-primary/30 text-base-content rounded-lg hover:bg-primary/5 transition-all text-sm font-medium"
+                className="btn btn-outline h-12 rounded-xl font-black uppercase text-[10px] tracking-widest border-info/20 hover:bg-info hover:text-white transition-all"
               >
-                {isImporting ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Upload className="h-4 w-4 text-primary" />}
-                {isImporting ? "Importing..." : "Select & Restore"}
+                {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {isImporting ? "Injecting..." : "Restore"}
               </button>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-medium text-error uppercase tracking-wider">Destructive</h3>
-              <p className="text-xs text-base-content/60 mb-2">Permanently wipe all data and start from scratch.</p>
+            <div className="flex flex-col gap-5 p-6 rounded-2xl bg-error/5 border border-error/5 hover:bg-error/10 transition-all text-center">
+              <h3 className="text-[10px] font-black text-error uppercase tracking-[0.2em]">Zero Phase</h3>
+              <p className="text-[10px] font-bold text-error/30 uppercase tracking-[0.15em] mb-4 leading-relaxed">Permanently purge all neural data & configuration settings.</p>
               <button
                 onClick={handleReset}
                 disabled={isResetting}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-error/10 border border-error/20 text-error rounded-lg hover:bg-red-500/20 transition-all text-sm font-medium"
+                className="btn btn-error h-12 rounded-xl font-black uppercase text-[10px] tracking-widest text-white shadow-xl shadow-error/20 hover:scale-105 active:scale-95"
               >
                 {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                {isResetting ? "Resetting..." : "Reset Database"}
+                {isResetting ? "Purging..." : "Reset"}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-base-200 p-6 border-dashed border-muted-foreground/25 text-center">
-            <span className="text-sm text-base-content/60 italic">User management and multi-tenancy controls are coming in Phase 6.</span>
+        <div className="glass-panel p-8 rounded-[2rem] border border-dashed border-base-content/10 text-center opacity-40 hover:opacity-100 transition-opacity">
+            <span className="text-[9px] font-black text-base-content/40 uppercase tracking-[0.4em] italic">Multi-Tenancy Neural Uplink scheduled for Phase 06 implementation.</span>
         </div>
       </div>
     </div>

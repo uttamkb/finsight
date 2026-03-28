@@ -1,10 +1,7 @@
 package com.finsight.backend.service.impl;
 
-import com.finsight.backend.client.GoogleDriveClient;
-import com.finsight.backend.entity.AppConfig;
 import com.finsight.backend.entity.Receipt;
 import com.finsight.backend.repository.ReceiptRepository;
-import com.finsight.backend.service.AppConfigService;
 import com.finsight.backend.service.TrainingDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,13 +23,7 @@ class ReceiptServiceImplTest {
     private ReceiptRepository receiptRepository;
     
     @Mock
-    private GoogleDriveClient googleDriveClient;
-    
-    @Mock
     private TrainingDataService trainingDataService;
-    
-    @Mock
-    private AppConfigService appConfigService;
 
     @InjectMocks
     private ReceiptServiceImpl receiptService;
@@ -57,12 +48,6 @@ class ReceiptServiceImplTest {
         when(receiptRepository.findById(1L)).thenReturn(Optional.of(sampleReceipt));
         when(receiptRepository.save(any(Receipt.class))).thenAnswer(i -> i.getArgument(0));
 
-        AppConfig mockConfig = new AppConfig();
-        mockConfig.setServiceAccountJson("{}");
-        when(appConfigService.getConfig()).thenReturn(mockConfig);
-        when(googleDriveClient.getDriveService(anyString())).thenReturn(null); // Return null mock drive
-        when(googleDriveClient.downloadFile(any(), eq("drive-123"))).thenReturn("fake_pdf".getBytes());
-
         Receipt result = receiptService.updateReceipt(1L, updateData);
 
         // Verify synchronous DB update
@@ -71,10 +56,7 @@ class ReceiptServiceImplTest {
         assertEquals("VERIFIED", result.getStatus());
         verify(receiptRepository).save(sampleReceipt);
 
-        // Give the background thread a moment to run
-        Thread.sleep(500);
-
-        // Verify asynchronous harvesting
-        verify(trainingDataService).harvest(eq(sampleReceipt), any(byte[].class));
+        // Verify asynchronous harvesting trigger
+        verify(trainingDataService).harvestAsync(sampleReceipt);
     }
 }

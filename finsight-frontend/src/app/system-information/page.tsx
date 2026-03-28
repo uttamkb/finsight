@@ -7,34 +7,38 @@ export default function SystemInformationPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
-    <div className="container mx-auto py-10 px-4 max-w-7xl animate-in fade-in duration-500">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-primary/20 rounded-xl text-primary">
-          <Info className="h-8 w-8" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Information & Architecture</h1>
-          <p className="text-base-content/60">Comprehensive documentation of the FinSight live system and components.</p>
+    <div className="container mx-auto py-10 px-4 max-w-7xl animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+        <div className="flex items-center gap-6">
+          <div className="p-4 bg-primary/10 rounded-3xl glow-primary">
+            <Info className="h-12 w-12 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight leading-tight uppercase">System Blueprint</h1>
+            <p className="text-base-content/40 font-bold uppercase tracking-[0.2em] text-[10px] mt-1 flex items-center gap-2">
+              <Server className="h-3.5 w-3.5 text-primary" /> Architecture & Operational Matrix
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex space-x-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
+      <div className="flex space-x-3 overflow-x-auto pb-6 mb-10 custom-scrollbar">
         {[
-          { id: "overview", label: "Overview & Features", icon: ShieldCheck },
-          { id: "architecture", label: "System Architecture", icon: Server },
-          { id: "data-flow", label: "Data Flow Pipelines", icon: Workflow },
-          { id: "schema", label: "Database Schema", icon: Database },
-          { id: "tech-stack", label: "Technology Stack", icon: Layers },
-          { id: "integrations", label: "Integrations", icon: Network },
-          { id: "training", label: "OCR Training", icon: BrainCircuit },
+          { id: "overview", label: "Mission & Intel", icon: ShieldCheck },
+          { id: "architecture", label: "Neural Topology", icon: Server },
+          { id: "data-flow", label: "Logic Pipelines", icon: Workflow },
+          { id: "schema", label: "Data DNA", icon: Database },
+          { id: "tech-stack", label: "Core Stack", icon: Layers },
+          { id: "integrations", label: "External Vectors", icon: Network },
+          { id: "training", label: "OCR Synth", icon: BrainCircuit },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap shadow-sm border ${
               activeTab === tab.id
-                ? "bg-primary text-primary-content shadow-md"
-                : "bg-base-300 hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
+                ? "bg-primary text-primary-content border-primary shadow-xl shadow-primary/20 scale-105"
+                : "bg-base-300/50 border-transparent text-base-content/30 hover:text-base-content hover:bg-base-300 transition-colors"
             }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -45,30 +49,33 @@ export default function SystemInformationPage() {
 
       <div className="grid gap-6">
         {activeTab === "overview" && (
-          <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                Product Mission
+          <div className="grid gap-10 animate-fade-in">
+            <div className="glass-panel p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group hover:glow-primary transition-all duration-700">
+              <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 group-hover:rotate-12 transition-transform duration-1000"><ShieldCheck className="h-32 w-32" /></div>
+              <h2 className="text-3xl font-black mb-8 flex items-center gap-4 tracking-tighter uppercase">
+                <ShieldCheck className="h-8 w-8 text-primary group-hover:animate-pulse" />
+                Strategic Configuration
               </h2>
-              <p className="text-base-content/60 leading-relaxed">
-                FinSight is an intelligent financial management platform engineered specifically for Apartment and Housing Associations. It automates the ingestion, parsing, and reconciliation of association expenses by combining optical character recognition (OCR) with robust reconciliation algorithms. The system aims to replace manual ledger tracking with an automated pipeline that traces every spent cent from bank statements directly to physical/digital receipts, ensuring 100% financial transparency and fraud prevention.
+              <p className="text-lg text-base-content/70 leading-relaxed font-bold italic">
+                FinSight is an autonomous financial intelligence matrix engineered for high-fidelity association auditing. By synthesizing deep neural parsing with multi-vector reconciliation, the system enforces absolute fiscal transparency. Every operational transaction is traced from bank origin to its digital receipt signature, neutralizing financial variance through real-time AI surveillance.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
-                { title: "Automated Ingestion", desc: "Watch Google Drive folders for new expense receipts and invoices automatically.", icon: Cloud },
-                { title: "AI-Powered Parsing (3.0)", desc: "Extract vendor names, dates, amounts, and metadata using Gemini 3 Flash. Features a hybrid bank parser (pdfplumber + camelot) with Dynamic Column Detection.", icon: Zap },
-                { title: "Bank Reconciliation", desc: "Correlate bank line items against receipts using a 60-30-10 scoring system (Amount/Vendor/Date) with tiered tolerance.", icon: CheckCircle2 },
-                { title: "Vendor Intelligence", desc: "Aggregate transactions by vendor to identify spending patterns and top payees.", icon: LayoutDashboard },
-                { title: "Conflict Resolution", desc: "Audit trails automatically flag and queue mismatched amounts or missing records for manual review.", icon: ShieldCheck },
-                { title: "Multi-Tenancy", desc: "Data is segregated by `tenant_id` at the database level, allowing for secure multi-association management.", icon: Database },
+                { title: "AUTONOMOUS INGESTION", desc: "Digital vacuuming of Google Workspace repositories for live financial records.", icon: Cloud, color: "primary" },
+                { title: "NEURAL PARSING 3.0", desc: "Gemini 1.5 Flash sequence for high-confidence data extraction & normalization.", icon: Zap, color: "warning" },
+                { title: "FORGE RECONCILIATION", desc: "Triple-threat 60:30:10 correlation matrix with tiered precision tolerance.", icon: CheckCircle2, color: "success" },
+                { title: "ENTITY INTELLIGENCE", desc: "Behavioral grouping by vendor vector to map expenditure heatmaps.", icon: LayoutDashboard, color: "info" },
+                { title: "AUDIT SURVEILLANCE", desc: "Persistent monitoring of operational buffer for mismatched records.", icon: ShieldCheck, color: "error" },
+                { title: "TENANT ISOLATION", desc: "Hard-linked multi-associative data segregation at the kernel level.", icon: Database, color: "primary" },
               ].map((feature, i) => (
-                <div key={i} className="p-5 rounded-xl border bg-base-200/50 hover:bg-base-200 transition-colors">
-                  <feature.icon className="h-6 w-6 text-primary mb-3" />
-                  <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-sm text-base-content/60">{feature.desc}</p>
+                <div key={i} className="glass-panel p-8 rounded-[2rem] hover:glow-primary transition-all group border-base-content/5">
+                  <div className={`p-4 bg-${feature.color}/10 rounded-2xl w-fit mb-6 transition-all group-hover:scale-110`}>
+                    <feature.icon className={`h-8 w-8 text-${feature.color}`} />
+                  </div>
+                  <h3 className="font-black text-lg mb-4 tracking-tight uppercase group-hover:text-primary transition-colors">{feature.title}</h3>
+                  <p className="text-sm text-base-content/40 font-bold leading-relaxed">{feature.desc}</p>
                 </div>
               ))}
             </div>
@@ -76,61 +83,57 @@ export default function SystemInformationPage() {
         )}
 
         {activeTab === "architecture" && (
-          <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Server className="h-5 w-5 text-primary" />
-                High-Level System Design
+          <div className="grid gap-10 animate-fade-in">
+            <div className="glass-panel p-10 rounded-[3rem] shadow-2xl relative border-primary/5">
+              <h2 className="text-3xl font-black mb-12 flex items-center gap-4 tracking-tighter uppercase">
+                <Server className="h-8 w-8 text-primary shadow-primary" />
+                Operational Topology
               </h2>
               
-              <div className="flex flex-col md:flex-row items-center justify-center gap-4 py-8">
-                {/* Client */}
-                <div className="flex flex-col items-center w-full md:w-1/4 p-6 rounded-xl border-2 border-primary/30 bg-primary/5 text-center relative z-10">
-                  <Smartphone className="h-10 w-10 text-primary mb-3" />
-                  <h3 className="font-bold text-lg">Next.js Frontend</h3>
-                  <p className="text-xs text-base-content/60 mt-2">React 19, Tailwind v4, API Centralization (constants.ts)</p>
-                </div>
-
-                {/* Arrow */}
-                <div className="flex flex-col items-center text-base-content/60">
-                  <span className="text-xs font-mono mb-1">REST API (JSON)</span>
-                  <div className="h-0.5 w-16 bg-base-300-foreground/30 hidden md:block relative">
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-2 border-r-2 border-muted-foreground/30 rotate-45"></div>
-                  </div>
-                  <div className="w-0.5 h-8 bg-base-300-foreground/30 md:hidden relative"></div>
-                </div>
-
-                {/* Server */}
-                <div className="flex flex-col items-center w-full md:w-1/3 p-6 rounded-xl border-2 border-blue-500/20 bg-info/5 text-center relative z-10">
-                  <Server className="h-10 w-10 text-info mb-3" />
-                  <h3 className="font-bold text-lg">Spring Boot API Layer</h3>
-                  <p className="text-xs text-base-content/60 mt-2">Java 21, Spring Web, Controllers, CORS enabled</p>
-                  
-                  <div className="w-full h-px bg-border my-4"></div>
-                  
-                  <div className="grid grid-cols-2 gap-2 w-full text-xs">
-                    <div className="bg-base-100 p-2 rounded border">DriveSyncService</div>
-                    <div className="bg-base-100 p-2 rounded border">OcrService</div>
-                    <div className="bg-base-100 p-2 rounded border text-primary font-bold">API_BASE_URL</div>
-                    <div className="bg-base-100 p-2 rounded border">Gemini 3 Parser</div>
-                    <div className="bg-base-100 p-2 rounded border text-primary font-bold underline decoration-indigo-500/30">SurveyEngine</div>
+              <div className="flex flex-col md:flex-row items-stretch justify-center gap-8 py-12 relative">
+                <div className="glass-panel w-full md:w-1/4 p-8 rounded-[2rem] border border-primary/20 bg-primary/5 text-center relative z-10 transition-all hover:glow-primary hover:scale-105">
+                  <Smartphone className="h-12 w-12 text-primary mx-auto mb-6 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                  <h3 className="font-black text-xl mb-4 tracking-tight uppercase">Interface Node</h3>
+                  <div className="space-y-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest bg-primary/20 text-primary py-1.5 rounded-lg border border-primary/20">Next.js 19</div>
+                    <p className="text-[10px] font-bold text-base-content/30 uppercase leading-relaxed tracking-wider">React 19, Tailwind v4, API Constants</p>
                   </div>
                 </div>
 
-                {/* Arrow */}
-                <div className="flex flex-col items-center text-base-content/60">
-                  <span className="text-xs font-mono mb-1">JPA / Hibernate</span>
-                  <div className="h-0.5 w-16 bg-base-300-foreground/30 hidden md:block relative">
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 border-t-2 border-r-2 border-muted-foreground/30 rotate-45"></div>
+                <div className="flex flex-col items-center justify-center text-primary/20 group">
+                  <div className="h-px w-20 bg-primary/20 hidden md:block relative animate-pulse">
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 border-t-2 border-r-2 border-primary rotate-45 shadow-primary"></div>
                   </div>
-                  <div className="w-0.5 h-8 bg-base-300-foreground/30 md:hidden relative"></div>
+                  <span className="text-[10px] font-mono font-black mt-4 uppercase tracking-[0.2em] group-hover:text-primary transition-colors">REST/XHR</span>
                 </div>
 
-                {/* DB */}
-                <div className="flex flex-col items-center w-full md:w-1/4 p-6 rounded-xl border-2 border-warning/20 bg-warning/5 text-center relative z-10">
-                  <Database className="h-10 w-10 text-warning mb-3" />
-                  <h3 className="font-bold text-lg">SQLite / Turso DB</h3>
-                  <p className="text-xs text-base-content/60 mt-2">finsight.db | LibSQL Embedded mode, WAL Mode</p>
+                <div className="glass-panel w-full md:w-1/3 p-8 rounded-[2rem] border border-info/20 bg-info/5 text-center relative z-10 transition-all hover:glow-info hover:scale-105">
+                  <Cpu className="h-12 w-12 text-info mx-auto mb-6 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+                  <h3 className="font-black text-xl mb-4 tracking-tight uppercase">Logic Core</h3>
+                  <div className="space-y-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest bg-info/20 text-info py-1.5 rounded-lg border border-info/20">Spring Boot 3.4</div>
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                      {["DriveSync", "OcrParser", "GeminiEngine", "AuditFlow"].map((s) => (
+                        <div key={s} className="bg-base-100/50 p-3 rounded-xl border border-white/5 text-[9px] font-black uppercase tracking-widest text-base-content/40">{s}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center justify-center text-warning/20 group">
+                  <div className="h-px w-20 bg-warning/30 hidden md:block relative animate-pulse">
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 border-t-2 border-r-2 border-warning rotate-45 shadow-warning"></div>
+                  </div>
+                  <span className="text-[10px] font-mono font-black mt-4 uppercase tracking-[0.2em] group-hover:text-warning transition-colors">JPA/LibSQL</span>
+                </div>
+
+                <div className="glass-panel w-full md:w-1/4 p-8 rounded-[2rem] border border-warning/20 bg-warning/5 text-center relative z-10 transition-all hover:glow-warning hover:scale-105">
+                  <Database className="h-12 w-12 text-warning mx-auto mb-6 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
+                  <h3 className="font-black text-xl mb-4 tracking-tight uppercase">Relational Buffer</h3>
+                  <div className="space-y-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest bg-warning/20 text-warning py-1.5 rounded-lg border border-warning/20">Turso / LibSQL</div>
+                    <p className="text-[10px] font-bold text-base-content/30 uppercase leading-relaxed tracking-widest">finsight.db | WAL Persistence</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -139,126 +142,73 @@ export default function SystemInformationPage() {
 
         {/* ... Include remaining tabs ... */}
         {activeTab === "schema" && (
-           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" />
-                  Embedded Database Schema (SQLite + Turso)
+           <div className="grid gap-10 animate-fade-in">
+             <div className="glass-panel p-10 rounded-[3rem] shadow-2xl relative border-primary/5">
+                <h2 className="text-3xl font-black mb-10 flex items-center gap-4 tracking-tighter uppercase">
+                  <Database className="h-8 w-8 text-primary shadow-primary" />
+                  Relational Synapse Schema
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   
-                  <div className="border rounded-lg overflow-hidden border-primary/30 ring-1 ring-indigo-500/20">
-                    <div className="bg-primary/10 p-3 border-b border-primary/30 font-mono font-bold text-sm flex items-center justify-between">
-                      <span className="text-indigo-600">surveys & responses (Turso)</span>
-                      <span className="text-[10px] font-sans text-primary bg-base-100 px-2 py-0.5 rounded border border-primary/30 font-bold uppercase tracking-wider">Active Planning</span>
+                  <div className="glass-panel rounded-3xl overflow-hidden border-primary/20 hover:scale-[1.02] transition-transform">
+                    <div className="bg-primary/20 p-5 border-b border-primary/20 flex items-center justify-between">
+                      <span className="font-black font-mono text-xs uppercase tracking-widest text-primary">surveys & intel</span>
+                      <span className="text-[9px] font-black text-white bg-primary px-2 py-1 rounded-lg uppercase tracking-wider">Turso Cloud</span>
                     </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>survey_id, form_url</span> <span className="text-primary/70">METADATA</span></div>
-                      <div className="flex justify-between"><span>responses</span> <span className="text-primary/70">RAW DATA</span></div>
-                      <div className="flex justify-between"><span>ai_insights</span> <span className="text-primary/70">AGGREGATED</span></div>
+                    <div className="p-6 space-y-3 text-[10px] font-mono font-bold text-base-content/50 uppercase tracking-widest">
+                      <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>survey_id</span> <span className="text-primary">UID_STRING</span></div>
+                      <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>responses</span> <span className="text-info">BLOB_JSON</span></div>
+                      <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>sentiment</span> <span className="text-success">FLOAT_32</span></div>
                     </div>
                   </div>
                   
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
-                      <span>receipts</span>
-                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Primary Data</span>
-                    </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
-                      <div className="flex justify-between"><span>tenant_id</span> <span>TEXT NOT NULL</span></div>
-                      <div className="flex justify-between"><span>drive_file_id</span> <span>TEXT UNIQUE</span></div>
-                      <div className="flex justify-between"><span>file_name, vendor</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>amount, ocr_conf</span> <span className="text-info/70">REAL (BigDecimal 15,2)</span></div>
-                      <div className="flex justify-between"><span>content_hash</span> <span className="text-success/70">TEXT (SHA-256 Dedup)</span></div>
-                      <div className="flex justify-between"><span>google_drive_link</span> <span>TEXT (URL)</span></div>
-                      <div className="flex justify-between"><span>category</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>status</span> <span>TEXT (PENDING|PROCESSED..)</span></div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
-                      <span>bank_transactions</span>
-                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Reconciliation Data</span>
-                    </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
-                      <div className="flex justify-between"><span>tx_date</span> <span>DATE NOT NULL</span></div>
-                      <div className="flex justify-between"><span>description</span> <span>TEXT NOT NULL</span></div>
-                      <div className="flex justify-between"><span>amount</span> <span>REAL NOT NULL</span></div>
-                      <div className="flex justify-between"><span>reconciled</span> <span>INTEGER (0/1)</span></div>
-                      <div className="flex justify-between"><span>category_id</span> <span className="text-warning/70">FK INTEGER</span></div>
-                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-warning/70">FK INTEGER</span></div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm">audit_trail</div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                       <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER (Indexed)</span></div>
-                      <div className="flex justify-between"><span>transaction_id</span> <span className="text-warning/70">FK INTEGER (Indexed)</span></div>
-                      <div className="flex justify-between"><span>receipt_id</span> <span className="text-warning/70">FK INTEGER (Indexed)</span></div>
-                      <div className="flex justify-between"><span>issue_type</span> <span>TEXT (MISMATCH)</span></div>
-                      <div className="flex justify-between"><span>similarity_score</span> <span>REAL (60-30-10 Logic)</span></div>
-                      <div className="flex justify-between"><span>match_type</span> <span>TEXT (AUTO|SUGGESTED)</span></div>
-                      <div className="flex justify-between"><span>resolved</span> <span>INTEGER (0/1)</span></div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
-                      <span>vendors</span>
-                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Analytics</span>
-                    </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
-                      <div className="flex justify-between"><span>name</span> <span>TEXT UNIQUE</span></div>
-                      <div className="flex justify-between"><span>total_payments</span> <span>INTEGER</span></div>
-                      <div className="flex justify-between"><span>total_spent</span> <span>REAL</span></div>
-                      <div className="flex justify-between"><span>last_payment_date</span> <span className="text-success/70">TIMESTAMP</span></div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg overflow-hidden border-rose-500/30">
-                    <div className="bg-rose-500/10 p-3 border-b border-rose-500/30 font-mono font-bold text-sm flex items-center justify-between">
-                      <span className="text-rose-600">forensic_anomalies</span>
-                      <span className="text-xs font-sans text-rose-500 bg-base-100 px-2 py-0.5 rounded border border-rose-500/30">Risk Engine</span>
-                    </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
-                      <div className="flex justify-between"><span>description</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>reason</span> <span className="text-rose-500/70">TEXT (Logic)</span></div>
-                      <div className="flex justify-between"><span>amount</span> <span>REAL</span></div>
-                      <div className="flex justify-between"><span>tx_date</span> <span>TEXT</span></div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm">categories</div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>id</span> <span className="text-primary/70">PK INTEGER</span></div>
-                      <div className="flex justify-between"><span>name</span> <span>TEXT UNIQUE</span></div>
-                      <div className="flex justify-between"><span>type</span> <span>TEXT (INCOME\|EXPENSE)</span></div>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-base-300 p-3 border-b font-mono font-bold text-sm flex items-center justify-between">
-                      <span>app_config</span>
-                      <span className="text-xs font-sans text-base-content/60 bg-base-100 px-2 py-0.5 rounded border">Global Settings</span>
-                    </div>
-                    <div className="p-4 space-y-2 text-sm font-mono text-base-content/60">
-                      <div className="flex justify-between"><span>apartment_name</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>service_account_json</span> <span className="text-info">TEXT (Long)</span></div>
-                      <div className="flex justify-between"><span>gemini_api_key</span> <span>TEXT</span></div>
-                      <div className="flex justify-between"><span>synced_at</span> <span className="text-success">TIMESTAMP</span></div>
-                      <div className="mt-2 pt-2 border-t text-[10px] uppercase tracking-tighter opacity-70">
-                        Implements Priority Logic: Saved UI Settings &gt; Env Fallbacks.
+                  {[
+                    { name: 'receipts', type: 'Primary Data', schema: [
+                      ['tenant_id', 'TEXT NOT NULL'],
+                      ['drive_id', 'TEXT UNIQUE'],
+                      ['vendor', 'TEXT INDEXED'],
+                      ['amount', 'DECIMAL(15,2)'],
+                      ['hash', 'SHA256_HASH'],
+                    ]},
+                    { name: 'bank_txns', type: 'Financial Data', schema: [
+                      ['tx_date', 'DATE NOT NULL'],
+                      ['desc', 'TEXT INDEXED'],
+                      ['amount', 'DECIMAL(15,2)'],
+                      ['reconciled', 'BOOL_INT'],
+                      ['receipt_id', 'FK_INT'],
+                    ]},
+                    { name: 'audit_trail', type: 'Forensic Logic', schema: [
+                      ['txn_id', 'FK_INT INDEXED'],
+                      ['issue', 'ENUM_MISMATCH'],
+                      ['score', 'FLOAT (60:30:10)'],
+                      ['resolved', 'BOOL_INT'],
+                    ]},
+                    { name: 'anomalies', type: 'Risk Data', schema: [
+                      ['reason', 'AI_DEDUCTION'],
+                      ['amount', 'DECIMAL(15,2)'],
+                      ['vector', 'SENSOR_TAG'],
+                    ]},
+                    { name: 'app_config', type: 'System Core', schema: [
+                      ['service_acc', 'SECURE_TEXT'],
+                      ['gemini_key', 'SECURE_TEXT'],
+                      ['synced_at', 'EPOCH_MS'],
+                    ]}
+                  ].map((table) => (
+                    <div key={table.name} className="glass-panel rounded-3xl overflow-hidden border-base-content/5 hover:scale-[1.02] transition-transform">
+                      <div className="bg-base-300/40 p-5 border-b border-base-content/5 flex items-center justify-between">
+                        <span className="font-black font-mono text-xs uppercase tracking-widest text-base-content/80">{table.name}</span>
+                        <span className="text-[9px] font-black text-base-content/40 bg-base-100/50 px-2 py-1 rounded-lg uppercase tracking-wider">{table.type}</span>
+                      </div>
+                      <div className="p-6 space-y-2.5 text-[10px] font-mono font-bold text-base-content/30 uppercase tracking-widest">
+                        {table.schema.map(([col, typ]) => (
+                          <div key={col} className="flex justify-between items-center group/row">
+                            <span className="group-hover/row:text-primary transition-colors">{col}</span>
+                            <span className="opacity-40">{typ}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-
+                  ))}
                 </div>
              </div>
            </div>

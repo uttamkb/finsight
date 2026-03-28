@@ -3,21 +3,21 @@ package com.finsight.backend.service;
 import com.finsight.backend.dto.BankTransactionDto;
 import com.finsight.backend.dto.ParsedBankTransactionDto;
 import com.finsight.backend.dto.SyncStatus;
-import com.finsight.backend.entity.AppConfig;
 import com.finsight.backend.entity.BankTransaction;
 import com.finsight.backend.entity.Category;
+import com.finsight.backend.entity.AppConfig;
+import com.finsight.backend.entity.StatementUpload;
 import com.finsight.backend.repository.BankTransactionRepository;
-import com.finsight.backend.repository.CategoryRepository;
+import com.finsight.backend.repository.StatementUploadRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.finsight.backend.util.RuntimeErrorLogger;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -36,192 +36,406 @@ public class BankStatementService {
 
     private final GeminiStatementParserService geminiStatementParserService;
     private final CsvStatementParser csvStatementParser;
+    private final XlsxStatementParser xlsxStatementParser;
     private final BankTransactionRepository bankTransactionRepository;
-    private final CategoryRepository categoryRepository;
-    private final VendorManager vendorManager;
     private final BankTransactionCategorizationService categorizationService;
-    private final ReconciliationService reconciliationService;
-    private final AnomalyDetectionService anomalyDetectionService;
+    private final TransactionPatternEnricher transactionPatternEnricher;
+    private final StatementUploadRepository statementUploadRepository;
+    private final AppConfigService appConfigService;
+    private final VendorManager vendorManager;
+    private String uploadBaseDir = "app-data/uploads";
+
     private final Map<String, SyncStatus> uploadStatuses = new ConcurrentHashMap<>();
 
     public BankStatementService(GeminiStatementParserService geminiStatementParserService,
                                 CsvStatementParser csvStatementParser,
+                                XlsxStatementParser xlsxStatementParser,
                                 BankTransactionRepository bankTransactionRepository,
-                                CategoryRepository categoryRepository,
-                                VendorManager vendorManager,
                                 BankTransactionCategorizationService categorizationService,
-                                ReconciliationService reconciliationService,
-                                AnomalyDetectionService anomalyDetectionService) {
+                                TransactionPatternEnricher transactionPatternEnricher,
+                                StatementUploadRepository statementUploadRepository,
+                                AppConfigService appConfigService,
+                                VendorManager vendorManager) {
         this.geminiStatementParserService = geminiStatementParserService;
         this.csvStatementParser = csvStatementParser;
+        this.xlsxStatementParser = xlsxStatementParser;
         this.bankTransactionRepository = bankTransactionRepository;
-        this.categoryRepository = categoryRepository;
-        this.vendorManager = vendorManager;
         this.categorizationService = categorizationService;
-        this.reconciliationService = reconciliationService;
-        this.anomalyDetectionService = anomalyDetectionService;
+        this.transactionPatternEnricher = transactionPatternEnricher;
+        this.statementUploadRepository = statementUploadRepository;
+        this.appConfigService = appConfigService;
+        this.vendorManager = vendorManager;
     }
 
-    @Transactional(readOnly = true)
-    public Page<BankTransactionDto> getPagedTransactions(String tenantId, Pageable pageable, Boolean reconciled) {
-        if (reconciled != null) {
-            return bankTransactionRepository.findByTenantIdWithCategoryAndReconciled(tenantId, reconciled, pageable)
-                    .map(BankTransactionDto::from);
-        }
-        return bankTransactionRepository.findByTenantIdWithCategory(tenantId, pageable)
-                .map(BankTransactionDto::from);
+    public void setUploadBaseDir(String uploadBaseDir) {
+        this.uploadBaseDir = uploadBaseDir;
     }
 
-    @Transactional
-    public BankTransactionDto updateTransaction(Long id, BankTransactionDto dto) {
-        BankTransaction txn = bankTransactionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Transaction not found with ID: " + id));
-
-        if (dto.getTxDate() != null) txn.setTxDate(dto.getTxDate());
-        if (dto.getDescription() != null) txn.setDescription(dto.getDescription());
-        if (dto.getVendor() != null) txn.setVendor(dto.getVendor());
-        if (dto.getAmount() != null) txn.setAmount(dto.getAmount());
-        if (dto.getType() != null) {
+    public Page<BankTransactionDto> getPagedTransactions(String tenantId, Pageable pageable, Boolean reconciled, String type, String startDate, String endDate, String accountType) {
+        BankTransaction.AccountType accType = parseAccountType(accountType);
+        BankTransaction.TransactionType txType = null;
+        if (type != null && !type.trim().isEmpty()) {
             try {
-                txn.setType(BankTransaction.TransactionType.valueOf(dto.getType().toUpperCase()));
+                txType = BankTransaction.TransactionType.valueOf(type.trim().toUpperCase());
             } catch (Exception e) {
-                // Ignore invalid type
+                log.warn("Invalid transaction type: {}", type);
             }
         }
 
-        // Re-generate reference number if core fields change? Probably best to keep it or update it.
-        // For simplicity, we just save the entity. The reference number is primarily for deduplication on upload.
+        LocalDate start = null;
+        LocalDate end = null;
+        if (startDate != null && !startDate.isBlank()) {
+            try {
+                start = LocalDate.parse(startDate);
+            } catch (Exception e) {
+                log.warn("Invalid startDate format: {}", startDate);
+            }
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            try {
+                end = LocalDate.parse(endDate);
+            } catch (Exception e) {
+                log.warn("Invalid endDate format: {}", endDate);
+            }
+        }
 
-        BankTransaction updatedTxn = bankTransactionRepository.save(txn);
-        return BankTransactionDto.from(updatedTxn);
+        Page<BankTransaction> transactions = bankTransactionRepository.findByTenantIdAndAccountTypeWithFilters(
+            tenantId, accType, txType, reconciled, start, end, pageable);
+            
+        return transactions.map(BankTransactionDto::from);
+    }
+
+    private BankTransaction.AccountType parseAccountType(String accountType) {
+        if (accountType == null) return BankTransaction.AccountType.MAINTENANCE;
+        try {
+            return BankTransaction.AccountType.valueOf(accountType.toUpperCase());
+        } catch (Exception e) {
+            return BankTransaction.AccountType.MAINTENANCE;
+        }
+    }
+
+    public BankTransactionDto updateTransaction(Long id, BankTransactionDto dto) {
+        BankTransaction txn = bankTransactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
+
+        txn.setAmount(dto.getAmount());
+        txn.setVendor(dto.getVendor());
+        txn.setTxDate(dto.getTxDate());
+        txn.setDescription(dto.getDescription());
+        if (dto.getType() != null) {
+            txn.setType(BankTransaction.TransactionType.valueOf(dto.getType()));
+        }
+        
+        // Re-enrich vendor if changed
+        txn.setVendorNormalized(dto.getVendor());
+        transactionPatternEnricher.enrichIfMatches(txn);
+
+        return BankTransactionDto.from(bankTransactionRepository.save(txn));
     }
 
     public SyncStatus getUploadStatus(String tenantId) {
         return uploadStatuses.getOrDefault(tenantId, new SyncStatus());
     }
 
-    public void processStatementAsync(String tenantId, MultipartFile file) {
+    public void processStatementAsync(String tenantId, MultipartFile file, String accountType) {
+        log.info("Async processing started for file: {} (Account: {})", file.getOriginalFilename(), accountType);
         SyncStatus status = uploadStatuses.computeIfAbsent(tenantId, k -> new SyncStatus());
         if ("RUNNING".equals(status.getStatus())) return;
 
         status.setStatus("RUNNING");
         status.setStage("INITIALIZING");
-        status.setMessage("Starting file processing...");
-        status.setProcessedFiles(0);
-        status.setTotalFiles(0);
-        status.getLogs().clear();
-        status.addLog("INFO: Statement upload process started.");
+        status.setMessage("Preparing statement for persistent storage...");
 
-        // Senior Dev Fix: Copy to a persistent temp file synchronously 
-        // because Tomcat's MultipartFile temp file is deleted after the request thread finishes.
-        File persistentTempFile;
+        // 1. Immediate Persistence & Meta-tracking (Synchronous)
+        String fileId = java.util.UUID.randomUUID().toString();
+        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown";
+        String lowerName = originalFilename.toLowerCase();
+        String extension = lowerName.endsWith(".csv") ? ".csv" : lowerName.endsWith(".xlsx") ? ".xlsx" : ".pdf";
+        
+        // Path structure: {uploadBaseDir}/{tenantId}/{fileId}{extension}
+        String baseDir = uploadBaseDir + "/" + tenantId;
+        java.io.File persistentDir = new java.io.File(baseDir);
+        if (!persistentDir.exists()) persistentDir.mkdirs();
+        
+        java.io.File persistentFile = new java.io.File(persistentDir, fileId + extension);
+        String fileHash;
+
         try {
-            persistentTempFile = File.createTempFile("finsight_upload_", file.getOriginalFilename());
-            Files.copy(file.getInputStream(), persistentTempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(file.getInputStream(), persistentFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            fileHash = generateFileHash(persistentFile);
+            
+            // 1a. Refined Idempotency: Skip ONLY if status == COMPLETED AND transactions exist in DB
+            var existingCompleted = statementUploadRepository.findByFileHashAndTenantIdAndStatus(fileHash, tenantId, "COMPLETED");
+            if (existingCompleted.isPresent()) {
+                log.warn("Previous COMPLETED record for hash {} found. Allowing re-process (individual txn dedup handles true duplicates).", fileHash);
+                statementUploadRepository.delete(existingCompleted.get());
+            }
+
+            
+            // 1b. Processing Lock: Check if already PROCESSING
+            var existingProcessing = statementUploadRepository.findByFileHashAndTenantIdAndStatus(fileHash, tenantId, "PROCESSING");
+            if (existingProcessing.isPresent()) {
+                log.warn("Duplicate upload attempt while processing (Hash: {}). Locking request.", fileHash);
+                status.setStatus("RUNNING");
+                status.setMessage("Statement is already being processed. Please wait.");
+                return;
+            }
+
+            StatementUpload upload = new StatementUpload();
+            upload.setFileId(fileId);
+            upload.setTenantId(tenantId);
+            upload.setFilePath(persistentFile.getAbsolutePath());
+            upload.setFileName(originalFilename);
+            upload.setFileHash(fileHash);
+            upload.setStatus("UPLOADED");
+            upload.setSource("AI");
+            upload.setRetryCount(0);
+            upload.setAccountType(accountType);
+            statementUploadRepository.save(upload);
+
+            // 2. Trigger Async Processing
+            processPersistentFileAsync(upload);
+
         } catch (Exception e) {
-            log.error("Failed to create local copy of uploaded file", e);
+            log.error("Failed to persist statement upload", e);
             status.setStatus("ERROR");
-            status.setMessage("FileSystem Error: " + e.getMessage());
-            return;
+            status.setMessage("Upload persistence failed: " + e.getMessage());
         }
+    }
+
+    @org.springframework.scheduling.annotation.Async
+    void processPersistentFileAsync(StatementUpload upload) {
+        String tenantId = upload.getTenantId();
+        String fileId = upload.getFileId();
+        java.io.File persistentFile = new java.io.File(upload.getFilePath());
+        String lowerName = upload.getFileName().toLowerCase();
+        String extension = lowerName.endsWith(".csv") ? ".csv" : lowerName.endsWith(".xlsx") ? ".xlsx" : ".pdf";
+        String accountType = upload.getAccountType();
+
+        SyncStatus status = uploadStatuses.computeIfAbsent(tenantId, k -> new SyncStatus());
+        status.setStatus("RUNNING");
 
         CompletableFuture.runAsync(() -> {
+            long startTime = System.currentTimeMillis();
             try {
-                String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
-                List<ParsedBankTransactionDto> parsedTxns;
+                upload.setStatus("PROCESSING");
+                statementUploadRepository.save(upload);
 
                 status.setStage("EXTRACTION");
-                status.setMessage("Extracting transactions from " + (filename.endsWith(".csv") ? "CSV" : "PDF") + "...");
+                status.setMessage("Gemini AI is reading the statement...");
+
+                AppConfig config = appConfigService.getConfig();
+                String ocrMode = (config != null) ? config.getOcrMode() : "LOCAL";
+                List<ParsedBankTransactionDto> parsedTxns;
                 
-                if (filename.endsWith(".csv")) {
-                    parsedTxns = csvStatementParser.parse(persistentTempFile);
+                if ("MODE_MAX_INTELLIGENCE".equals(ocrMode)) {
+                    log.info("MAX_INTELLIGENCE Mode enabled: Bypassing heuristics and using Universal AI Parser.");
+                    String apiKey = (config != null) ? config.getGeminiApiKey() : null;
+                    if (apiKey != null && !apiKey.trim().isEmpty()) {
+                        if (extension.equals(".pdf")) {
+                            parsedTxns = geminiStatementParserService.parsePdfStatement(persistentFile);
+                        } else {
+                            parsedTxns = geminiStatementParserService.parseExcelOrCsv(persistentFile, apiKey);
+                        }
+                    } else {
+                        log.warn("MAX_INTELLIGENCE Mode active but Gemini API key is NOT configured. Falling back to local heuristics.");
+                        parsedTxns = runLocalHeuristic(extension, persistentFile, tenantId);
+                    }
                 } else {
-                    parsedTxns = geminiStatementParserService.parsePdfStatement(persistentTempFile);
+                    parsedTxns = runLocalHeuristic(extension, persistentFile, tenantId);
                 }
 
-                status.setTotalFiles(parsedTxns.size());
-                status.setMessage("Extracted " + parsedTxns.size() + " transactions. Persisting to database...");
-                status.setStage("PERSISTENCE");
-
-                int savedCount = persistParsedTransactionsWithStatus(parsedTxns, !filename.endsWith(".csv"), status);
-
-                status.setStatus("SUCCESS");
-                status.setStage("COMPLETED");
-                status.setMessage("Successfully processed " + savedCount + " new transactions.");
-                status.setProcessedFiles(savedCount);
-                status.addLog("SUCCESS: Completed statement processing.");
-
-                if (savedCount > 0) {
-                    status.setStage("POST_PROCESSING");
-                    status.setMessage("Running AI Reconciliation and Anomaly Detection...");
-                    try {
-                        reconciliationService.runReconciliation();
-                        anomalyDetectionService.detectAnomalies();
-                        status.addLog("INFO: AI Post-processing complete.");
-                    } catch (Exception ex) {
-                        log.error("Failed post-processing", ex);
-                        status.addLog("WARN: AI Post-processing failed: " + ex.getMessage());
+                // Fallback for CSV/XLSX if 0 rows extracted (Only if NOT already in MAX_INTELLIGENCE mode)
+                if (parsedTxns.isEmpty() && !extension.equals(".pdf") && !"MODE_MAX_INTELLIGENCE".equals(ocrMode)) {
+                    log.info("Heuristic parse for {} returned 0 rows. Checking for Gemini AI Parser fallback...", extension);
+                    String apiKey = (config != null) ? config.getGeminiApiKey() : null;
+                    if (apiKey != null && !apiKey.trim().isEmpty()) {
+                        parsedTxns = geminiStatementParserService.parseExcelOrCsv(persistentFile, apiKey);
+                    } else {
+                        log.warn("Gemini AI fallback triggered but API key is NOT configured. Skipping AI extraction.");
                     }
                 }
 
-            } catch (Exception e) {
-                log.error("Error processing statement asynchronously", e);
-                status.setStatus("ERROR");
-                status.setStage("FAILED");
-                status.setMessage("Processing failed: " + e.getMessage());
-                status.addLog("ERROR: " + e.getMessage());
-            } finally {
-                // Cleanup the persistent temp file
-                if (persistentTempFile != null && persistentTempFile.exists()) {
-                    persistentTempFile.delete();
+                status.setTotalFiles(parsedTxns.size());
+                status.setMessage("Extracted " + parsedTxns.size() + " transactions. Persisting...");
+                status.setStage("PERSISTENCE");
+
+                int savedCount = persistParsedTransactionsWithStatus(tenantId, parsedTxns, true, status, accountType);
+
+                // Calculate Metrics
+                double avgConfidence = parsedTxns.stream()
+                        .mapToDouble(t -> t.getConfidenceScore() != null ? t.getConfidenceScore() : 0.0)
+                        .average().orElse(0.0);
+
+                if (parsedTxns.isEmpty()) {
+                    upload.setStatus("FAILED");
+                    upload.setErrorMessage("No transactions extracted (possibly heuristic/AI failure).");
+                } else {
+                    upload.setStatus("COMPLETED");
+                    upload.setErrorMessage(null); // Clear previous errors if re-processing
                 }
+                upload.setLastProcessedAt(java.time.LocalDateTime.now());
+                upload.setProcessingTimeMs(System.currentTimeMillis() - startTime);
+                upload.setAvgConfidenceScore(avgConfidence);
+                upload.setGeminiCallsCount(calculateGeminiCalls(parsedTxns, extension));
+                statementUploadRepository.save(upload);
+
+                status.setStatus("SUCCESS");
+                status.setStage("COMPLETED");
+                status.setMessage("Successfully processed " + savedCount + " transactions.");
+                status.setProcessedFiles(savedCount);
+
+            } catch (Exception e) {
+                log.error("Error in async statement processing for fileId: {}", fileId, e);
+                RuntimeErrorLogger.log(
+                    RuntimeErrorLogger.Module.STATEMENT_UPLOAD,
+                    e.getClass().getSimpleName(),
+                    e,
+                    java.util.Map.of(
+                        "fileId", fileId,
+                        "fileName", persistentFile.getName(),
+                        "tenantId", tenantId,
+                        "extension", extension
+                    ),
+                    "Successful extraction and persistence",
+                    e.getMessage() != null ? e.getMessage() : "Unknown error"
+                );
+                
+                int currentRetries = upload.getRetryCount() != null ? upload.getRetryCount() : 0;
+                upload.setRetryCount(currentRetries + 1);
+                upload.setLastProcessedAt(java.time.LocalDateTime.now());
+                
+                // Partial Success Check
+                boolean someSaved = status.getProcessedFiles() > 0;
+                
+                if (upload.getRetryCount() >= 3) {
+                    upload.setStatus("FAILED_PERMANENT");
+                    status.setStage("DEAD_LETTER");
+                    status.setMessage("Permanent failure after 3 retries.");
+                } else {
+                    upload.setStatus(someSaved ? "PARTIAL_SUCCESS" : "FAILED");
+                    status.setStatus(someSaved ? "WARNING" : "ERROR");
+                    status.setStage(someSaved ? "PARTIAL_SUCCESS" : "FAILED");
+                    status.setMessage((someSaved ? "Partial success: " : "Processing failed: ") + e.getMessage());
+                }
+                
+                upload.setErrorMessage(e.getMessage());
+                upload.setProcessingTimeMs(System.currentTimeMillis() - startTime);
+                statementUploadRepository.save(upload);
             }
         });
     }
 
-    @Transactional
-    public int processPdfStatement(MultipartFile file) throws Exception {
-        log.info("Processing Bank Statement PDF: {}", file.getOriginalFilename());
-        File tmpDir = new File(System.getProperty("java.io.tmpdir", "tmp"));
-        if (!tmpDir.exists()) tmpDir.mkdirs();
-        File temp = File.createTempFile("finsight_sync_", ".pdf", tmpDir);
-        Files.copy(file.getInputStream(), temp.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    private int calculateGeminiCalls(List<ParsedBankTransactionDto> txns, String extension) {
+        if (".csv".equals(extension)) return 0;
+        // Approximation: 1 call per ~50 transactions or based on chunking logic in GeminiStatementParserService
+        return (int) Math.ceil(txns.size() / 15.0); 
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 2 * * *") // Daily at 2 AM
+    public void cleanupOldUploads() {
+        log.info("Starting scheduled cleanup of statement uploads older than 90 days...");
+        LocalDateTime threshold = LocalDateTime.now().minusDays(90);
+        List<StatementUpload> toDelete = statementUploadRepository.findByCreatedAtBefore(threshold);
+        
+        for (StatementUpload upload : toDelete) {
+            java.io.File file = new java.io.File(upload.getFilePath());
+            if (file.exists()) {
+                if (file.delete()) {
+                    log.info("Deleted old statement file: {}", upload.getFilePath());
+                } else {
+                    log.warn("Failed to delete file: {}", upload.getFilePath());
+                }
+            }
+        }
+        statementUploadRepository.deleteOlderThan(threshold);
+        log.info("Cleanup completed.");
+    }
+
+    public void reprocessStatement(String fileId) {
+        var uploadOpt = statementUploadRepository.findByFileId(fileId);
+        if (uploadOpt.isEmpty()) throw new RuntimeException("Upload not found: " + fileId);
+        var upload = uploadOpt.get();
+        
+        if ("PROCESSING".equals(upload.getStatus())) {
+            throw new RuntimeException("Statement is already being processed.");
+        }
+        
+        upload.setSource("REPROCESSED");
+        processPersistentFileAsync(upload);
+    }
+
+    public List<StatementUpload> getRecentUploads(String tenantId) {
+        return statementUploadRepository.findByTenantIdOrderByCreatedAtDesc(tenantId); 
+    }
+
+    private String generateFileHash(java.io.File file) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] fileBytes = Files.readAllBytes(file.toPath());
+            byte[] hash = digest.digest(fileBytes);
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return java.util.UUID.randomUUID().toString();
+        }
+    }
+
+    public int processPdfStatement(File temp) throws Exception {
+        log.info("Processing Bank Statement PDF: {}", temp.getName());
         try {
             List<ParsedBankTransactionDto> parsedTxns = geminiStatementParserService.parsePdfStatement(temp);
             log.info("Parser extracted {} transactions from PDF.", parsedTxns.size());
-            return persistParsedTransactions(parsedTxns, true);
+            return persistParsedTransactionsWithStatus("local_tenant", parsedTxns, true, null, "MAINTENANCE");
         } finally {
             temp.delete();
         }
     }
 
-    @Transactional
-    public int processCsvStatement(MultipartFile file) throws Exception {
-        log.info("Processing Bank Statement CSV: {}", file.getOriginalFilename());
-        File temp = File.createTempFile("finsight_sync_", ".csv");
-        Files.copy(file.getInputStream(), temp.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    public int processCsvStatement(File temp) throws Exception {
+        log.info("Processing Bank Statement CSV: {}", temp.getName());
         try {
-            List<ParsedBankTransactionDto> parsedTxns = csvStatementParser.parse(temp);
+            List<ParsedBankTransactionDto> parsedTxns = csvStatementParser.parse(temp, "local_tenant");
             log.info("Parser extracted {} transactions from CSV.", parsedTxns.size());
-            return persistParsedTransactions(parsedTxns, false);
+            return persistParsedTransactionsWithStatus("local_tenant", parsedTxns, false, null, "MAINTENANCE");
         } finally {
             temp.delete();
         }
     }
 
-    private int persistParsedTransactions(List<ParsedBankTransactionDto> parsedTxns, boolean useSha256) {
-        return persistParsedTransactionsWithStatus(parsedTxns, useSha256, null);
-    }
+    private int persistParsedTransactionsWithStatus(String tenantId, List<ParsedBankTransactionDto> parsedTxns, boolean useSha256, SyncStatus status, String accountType) {
+        if (parsedTxns == null || parsedTxns.isEmpty()) {
+            if (status != null) {
+                status.setStatus("COMPLETED");
+                status.setStage("PERSISTENCE");
+                status.setMessage("No transactions found to persist.");
+                status.setProcessedFiles(0);
+            }
+            return 0;
+        }
 
-    private int persistParsedTransactionsWithStatus(List<ParsedBankTransactionDto> parsedTxns, boolean useSha256, SyncStatus status) {
         int totalToProcess = parsedTxns.size();
         List<BankTransaction> toSave = new ArrayList<>();
         int current = 0;
+        
+        BankTransaction.AccountType accType;
+        try {
+            accType = BankTransaction.AccountType.valueOf(accountType.toUpperCase());
+        } catch (Exception e) {
+            log.warn("Invalid accountType '{}', defaulting to MAINTENANCE", accountType);
+            accType = BankTransaction.AccountType.MAINTENANCE;
+        }
 
         for (ParsedBankTransactionDto dto : parsedTxns) {
             current++;
             if (status != null) {
-                status.setMessage("Validating transaction " + current + " of " + totalToProcess + "...");
+                status.setProcessedFiles(current);
+                status.setMessage("Saving transaction " + current + " of " + totalToProcess);
             }
             
             if (dto.getTxDate() == null || dto.getAmount() == null || dto.getDescription() == null) {
@@ -230,14 +444,26 @@ public class BankStatementService {
             }
 
             LocalDate txDate = csvStatementParser.parseDateRobustly(dto.getTxDate());
-            if (txDate == null) continue;
+            if (txDate == null) {
+                log.warn("Skipping transaction due to unparseable date: {}", dto.getTxDate());
+                continue;
+            }
+
+            // Simple deduplication check
+            String rawRef = txDate + "|" + dto.getAmount() + "|" + dto.getDescription();
+            String refHash = generateHash(rawRef);
+            if (bankTransactionRepository.existsByReferenceNumberAndTenantId(refHash, tenantId)) {
+                log.info("Skipping duplicate transaction: {}", dto.getDescription());
+                continue;
+            }
 
             BankTransaction txn = new BankTransaction();
             txn.setTxDate(txDate);
             txn.setDescription(dto.getDescription());
             txn.setVendor(dto.getVendor() != null ? dto.getVendor() : "Unknown");
             txn.setAmount(dto.getAmount());
-            txn.setTenantId("local_tenant"); // Senior Fix: Explicitly setting tenantId
+            txn.setTenantId(tenantId); 
+            txn.setReferenceNumber(refHash);
 
             try {
                 txn.setType(BankTransaction.TransactionType.valueOf(dto.getType().toUpperCase()));
@@ -245,60 +471,69 @@ public class BankStatementService {
                 txn.setType(BankTransaction.TransactionType.DEBIT);
             }
 
-            // Categorization Engine: 3-tier pipeline
-            // 1. Use Gemini's parse-time category if specific
-            // 2. Keyword rules   3. AI classification fallback
             String categoryName = categorizationService.categorize(
-                    txn.getVendor(),
-                    txn.getDescription(),
-                    dto.getCategory(),
-                    dto.getType()
+                txn.getVendor(),
+                txn.getDescription(), 
+                dto.getCategory(), 
+                txn.getType().name()
             );
             Category category = categorizationService.getOrCreateCategoryEntity(categoryName, dto.getType());
             txn.setCategory(category);
-
-            String rawRef = txDate + "|" + txn.getAmount() + "|" + txn.getDescription();
-            txn.setReferenceNumber(useSha256 ? sha256Short(rawRef) : Integer.toHexString(rawRef.hashCode()));
-
-            if (!bankTransactionRepository.existsByReferenceNumberAndTenantId(txn.getReferenceNumber(), txn.getTenantId())) {
-                toSave.add(txn);
-            }
-        }
-
-        if (!toSave.isEmpty()) {
-            log.info("Batch saving {} transactions...", toSave.size());
-            bankTransactionRepository.saveAll(toSave);
+            txn.setVendorNormalized(dto.getVendor()); 
+            txn.setAccountType(accType);
             
-            // Background update vendor stats
-            CompletableFuture.runAsync(() -> {
-                for (BankTransaction txn : toSave) {
-                    vendorManager.updateVendorStats(txn.getTenantId(), txn.getVendor(), txn.getAmount(), txn.getTxDate());
-                }
-            });
+            // Map AI Metadata
+            double confidence = dto.getConfidenceScore() != null ? dto.getConfidenceScore() : 0.0;
+            txn.setConfidenceScore(confidence);
+            txn.setAiReasoning(dto.getAiReasoning());
+            txn.setOriginalSnippet(dto.getOriginalSnippet());
+            
+            // Status Automation
+            if (confidence >= 0.90) {
+                txn.setStatus("AUTO_VALIDATED");
+            } else if (confidence > 0) {
+                txn.setStatus("LOW_CONFIDENCE");
+            } else {
+                txn.setStatus("NEEDS_REVIEW");
+            }
+            
+            transactionPatternEnricher.enrichIfMatches(txn);
+            
+            // Populate/Update Vendor statistics for the "Vendor Intel" page (Only for Spending/Debit)
+            if (txn.getType() == BankTransaction.TransactionType.DEBIT) {
+                vendorManager.updateVendorStats(tenantId, txn.getVendor(), txn.getAmount(), txn.getTxDate());
+            }
+
+            toSave.add(txn);
         }
 
+        bankTransactionRepository.saveAll(toSave);
         return toSave.size();
     }
 
-    private Category getOrCreateCategory(String name, Category.CategoryType type) {
-        return categoryRepository.findByNameAndTenantId(name, "local_tenant")
-                .orElseGet(() -> {
-                    Category c = new Category();
-                    c.setName(name);
-                    c.setType(type);
-                    return categoryRepository.save(c);
-                });
-    }
-
-    private String sha256Short(String input) {
+    private String generateHash(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hash) sb.append(String.format("%02x", b));
-            return sb.substring(0, 16);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            return Long.toHexString(input.hashCode() & 0xFFFFFFFFL);
+            byte[] hash = digest.digest(input.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString().substring(0, 32);
+        } catch (Exception e) {
+            return String.valueOf(input.hashCode());
+        }
+    }
+    
+    private List<ParsedBankTransactionDto> runLocalHeuristic(String extension, File persistentFile, String tenantId) throws Exception {
+        if (extension.equals(".csv")) {
+            return csvStatementParser.parse(persistentFile, tenantId);
+        } else if (extension.equals(".xlsx")) {
+            return xlsxStatementParser.parse(persistentFile, tenantId);
+        } else {
+            return geminiStatementParserService.parsePdfStatement(persistentFile);
         }
     }
 }

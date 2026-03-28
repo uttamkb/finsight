@@ -11,6 +11,11 @@ public interface TrainingDataService {
     void harvest(Receipt receipt, byte[] fileData);
 
     /**
+     * Downloads file content and harvests it in the background.
+     */
+    void harvestAsync(Receipt receipt);
+
+    /**
      * Lists all harvested golden samples currently in the local workspace.
      */
     java.util.List<java.util.Map<String, Object>> getHarvestedSamples();

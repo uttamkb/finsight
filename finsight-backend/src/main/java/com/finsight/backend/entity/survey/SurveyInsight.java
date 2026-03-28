@@ -29,6 +29,9 @@ public class SurveyInsight {
     @Column(name = "recommendations", columnDefinition = "TEXT")
     private String recommendations;
 
+    @Column(name = "action_items", columnDefinition = "TEXT")
+    private String actionItems;
+
     @Column(name = "generated_at")
     private LocalDateTime generatedAt;
 
@@ -52,6 +55,8 @@ public class SurveyInsight {
     public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
     public String getRecommendations() { return recommendations; }
     public void setRecommendations(String recommendations) { this.recommendations = recommendations; }
+    public String getActionItems() { return actionItems; }
+    public void setActionItems(String actionItems) { this.actionItems = actionItems; }
     public LocalDateTime getGeneratedAt() { return generatedAt; }
     public void setGeneratedAt(LocalDateTime generatedAt) { this.generatedAt = generatedAt; }
 }

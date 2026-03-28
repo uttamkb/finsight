@@ -50,20 +50,12 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
-    <!-- SQLite JDBC -->
-    <dependency>
-        <groupId>org.xerial</groupId>
-        <artifactId>sqlite-jdbc</artifactId>
-        <version>3.45.2.0</version>
-    </dependency>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.45.2.0</version>
+        </dependency>
 
-    <!-- Mockito for tests -->
-    <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>5.12.0</version>
-        <scope>test</scope>
-    </dependency>
 
     <!-- Hibernate Community Dialects (Provides SQLiteDialect) -->
     <dependency>
@@ -162,6 +154,32 @@
     </dependency>
 
     <!-- Test -->
+    <!-- Added to pom.xml -->
+    <dependency>
+        <groupId>tech.turso</groupId>
+        <artifactId>turso</artifactId>
+        <version>0.3.2</version>
+    </dependency>
+
+    <!-- Excel Processing (Apache POI) -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+
+    <!-- Lombok (Annotated Java entities/DTOs) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -183,13 +201,8 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
         <configuration>
-          <argLine>-Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading</argLine>
+          <argLine>@{argLine} -Dmockito.mockmaker=subclass</argLine>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.2.2</version>
       </plugin>
       <!-- JaCoCo for test coverage reports -->
       <plugin>
@@ -209,5 +222,12 @@
       </plugin>
     </plugins>
   </build>
+
+  <repositories>
+    <repository>
+      <id>jitpack.io</id>
+      <url>https://jitpack.io</url>
+    </repository>
+  </repositories>
 
 </project>

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart3, Receipt, CheckCircle2, X } from "lucide-react";
+import { ArrowRight, BarChart3, Receipt, CheckCircle2, X, Sparkles } from "lucide-react";
 
 export default function Home() {
   const [selectedFeature, setSelectedFeature] = useState<null | {
+    id: string;
     title: string;
     description: string;
     explanation: string;
@@ -37,75 +38,89 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] text-center px-4 relative">
-      <div className="space-y-6 max-w-3xl">
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-          Automate your <span className="text-primary block">Apartment Finances</span>
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] text-center px-4 relative overflow-hidden">
+      {/* Dynamic Backdrop */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-primary/10 to-transparent pointer-events-none -z-10" />
+      <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-1/2 -right-24 w-80 h-80 bg-secondary/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
+      <div className="space-y-8 max-w-4xl animate-fade-in">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/20 bg-primary/5 text-primary text-xs font-bold uppercase tracking-widest mb-4">
+          <Sparkles className="h-3 w-3" />
+          Powered by Gemini AI
+        </div>
+        <h1 className="text-5xl font-black tracking-tight sm:text-6xl md:text-7xl lg:text-8xl leading-[1.1]">
+          Automate your <span className="text-primary drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">Finance</span>
         </h1>
-        <p className="mx-auto max-w-[700px] text-base-content/60 md:text-xl">
-          FinSight intelligently ingests receipts via Google Drive, parses Bank Statements, and reconciles everything down to the penny.
+        <p className="mx-auto max-w-[750px] text-base-content/70 text-lg md:text-xl font-medium leading-relaxed">
+          FinSight is the next-gen financial layer for your Apartment Association. 
+          Smart OCR, AI reconciliation, and GBM-ready reports—all in one place.
         </p>
-        <div className="flex justify-center gap-4 mt-8">
+        <div className="flex flex-wrap justify-center gap-6 mt-10">
           <Link
             href="/dashboard"
-            className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-content transition-colors hover:bg-primary/90"
+            className="inline-flex h-14 items-center justify-center rounded-2xl bg-primary px-10 text-sm font-black text-primary-content transition-all hover:bg-primary/90 hover:scale-105 active:scale-95 shadow-xl shadow-primary/30"
           >
-            Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+            LAUNCH DASHBOARD <ArrowRight className="ml-2 h-5 w-5" />
           </Link>
           <Link
             href="/settings"
-            className="inline-flex h-11 items-center justify-center rounded-md border border-input bg-base-100 px-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-content"
+            className="inline-flex h-14 items-center justify-center rounded-2xl border border-base-content/20 bg-base-100/50 backdrop-blur-md px-10 text-sm font-black transition-all hover:bg-base-300 hover:scale-105 active:scale-95 shadow-lg"
           >
-            Configure System
+            CONFIGURE ENGINE
           </Link>
         </div>
       </div>
 
-      <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-5xl w-full">
+      <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-6xl w-full animate-fade-in [animation-delay:200ms]">
         {features.map((feature) => (
           <div 
             key={feature.id}
             onClick={() => setSelectedFeature(feature)}
-            className="group flex flex-col space-y-2 p-6 rounded-xl border bg-base-200 text-card-foreground shadow-sm hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all cursor-pointer relative overflow-hidden"
+            className="glass-panel group flex flex-col space-y-4 p-8 rounded-3xl cursor-pointer relative overflow-hidden transition-all hover:-translate-y-2 hover:border-primary/40 hover:glow-primary"
           >
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <ArrowRight className="h-4 w-4 text-primary" />
+            <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0 translate-x-4">
+              <ArrowRight className="h-5 w-5 text-primary" />
             </div>
-            <feature.icon className="h-10 w-10 text-primary mb-2" />
-            <h3 className="font-semibold tracking-tight text-xl">{feature.title}</h3>
-            <p className="text-sm text-base-content/60">{feature.description}</p>
+            <div className="p-3 bg-primary/10 rounded-2xl w-fit group-hover:bg-primary/20 transition-colors">
+              <feature.icon className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-extrabold tracking-tight text-2xl mb-2">{feature.title}</h3>
+              <p className="text-base text-base-content/60 font-medium leading-relaxed">{feature.description}</p>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Feature Detail Modal */}
       {selectedFeature && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-base-100/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative max-w-2xl w-full bg-base-200 border rounded-2xl shadow-2xl p-8 md:p-10 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-base-100/40 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="relative max-w-2xl w-full bg-base-100 border border-base-content/10 rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] p-10 md:p-14 animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setSelectedFeature(null)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-base-300 transition-colors"
+              className="absolute top-8 right-8 p-3 rounded-full hover:bg-base-300 transition-all active:scale-90"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </button>
-            <div className="flex flex-col items-center text-center space-y-6">
-              <div className="p-4 bg-primary/20 rounded-2xl">
-                <selectedFeature.icon className="h-16 w-16 text-primary" />
+            <div className="flex flex-col items-center text-center space-y-8">
+              <div className="p-6 bg-primary/10 rounded-[2rem] glow-primary">
+                <selectedFeature.icon className="h-20 w-20 text-primary" />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">{selectedFeature.title}</h2>
-                <p className="text-primary font-medium">{selectedFeature.description}</p>
+              <div className="space-y-3">
+                <h2 className="text-4xl font-black tracking-tighter">{selectedFeature.title}</h2>
+                <p className="text-primary font-bold text-lg uppercase tracking-wide">{selectedFeature.description}</p>
               </div>
-              <div className="bg-base-300/50 p-6 rounded-xl border text-left">
-                <p className="text-lg leading-relaxed text-base-content/60">
+              <div className="bg-base-200 p-8 rounded-[1.5rem] border border-base-content/5 text-left shadow-inner">
+                <p className="text-xl leading-relaxed text-base-content/70 italic font-medium">
                   {selectedFeature.explanation}
                 </p>
               </div>
               <button 
                 onClick={() => setSelectedFeature(null)}
-                className="bg-primary text-primary-content px-8 py-3 rounded-xl font-bold hover:bg-primary/90 transition-all"
+                className="w-full bg-primary text-primary-content h-16 rounded-[1.25rem] font-black text-lg hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-95"
               >
-                Got it, thanks!
+                PROCEED
               </button>
             </div>
           </div>

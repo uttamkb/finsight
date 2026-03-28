@@ -31,7 +31,7 @@ public class GoogleDriveClient {
             GoogleCredentials credentials = GoogleCredentials
                     .fromStream(new java.io.ByteArrayInputStream(serviceAccountJson.getBytes()))
                     .createScoped(
-                            java.util.Collections.singletonList("https://www.googleapis.com/auth/drive.readonly"));
+                            java.util.Collections.singletonList("https://www.googleapis.com/auth/drive"));
             return new Drive.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
                     .setApplicationName(APPLICATION_NAME)
                     .build();
@@ -78,5 +78,19 @@ public class GoogleDriveClient {
         Drive.Files.Get getRequest = service.files().get(fileId);
         getRequest.executeMediaAndDownloadTo(outputStream);
         return outputStream.toByteArray();
+    }
+    public String createFile(Drive service, String name, String mimeType) throws IOException {
+        File fileMetadata = new File();
+        fileMetadata.setName(name);
+        fileMetadata.setMimeType(mimeType);
+
+        File file = service.files().create(fileMetadata)
+                .setFields("id")
+                .execute();
+        return file.getId();
+    }
+
+    public void deleteFile(Drive service, String fileId) throws IOException {
+        service.files().delete(fileId).execute();
     }
 }

@@ -4,9 +4,7 @@ import com.finsight.backend.entity.Receipt;
 import com.finsight.backend.exception.ResourceNotFoundException;
 import com.finsight.backend.repository.ReceiptRepository;
 import com.finsight.backend.service.ReceiptService;
-import com.finsight.backend.client.GoogleDriveClient;
 import com.finsight.backend.service.TrainingDataService;
-import com.finsight.backend.service.AppConfigService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,18 +14,12 @@ import java.util.List;
 public class ReceiptServiceImpl implements ReceiptService {
 
     private final ReceiptRepository receiptRepository;
-    private final GoogleDriveClient driveClient;
     private final TrainingDataService trainingDataService;
-    private final AppConfigService appConfigService;
 
     public ReceiptServiceImpl(ReceiptRepository receiptRepository,
-                              GoogleDriveClient driveClient,
-                              TrainingDataService trainingDataService,
-                              AppConfigService appConfigService) {
+                              TrainingDataService trainingDataService) {
         this.receiptRepository = receiptRepository;
-        this.driveClient = driveClient;
         this.trainingDataService = trainingDataService;
-        this.appConfigService = appConfigService;
     }
 
     @Override
@@ -62,17 +54,8 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         Receipt saved = receiptRepository.save(existing);
         
-        // Trigger Harvesting in background thread to avoid slowing down UI
-        new Thread(() -> {
-            try {
-                var config = appConfigService.getConfig();
-                var driveService = driveClient.getDriveService(config.getServiceAccountJson());
-                byte[] content = driveClient.downloadFile(driveService, saved.getDriveFileId());
-                trainingDataService.harvest(saved, content);
-            } catch (Exception e) {
-                // Log and continue, don't fail the update
-            }
-        }).start();
+        // Cleanly offload to async service for AI harvesting
+        trainingDataService.harvestAsync(saved);
 
         return saved;
     }

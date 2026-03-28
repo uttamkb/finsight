@@ -262,4 +262,17 @@ public class TrainingDataServiceImpl implements TrainingDataService {
         String pythonPath = "src/main/resources/scripts/venv/bin/python3";
         return executeScript(pythonPath, scriptPath);
     }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async
+    public void harvestAsync(Receipt receipt) {
+        try {
+            var config = appConfigService.getConfig();
+            var driveService = driveClient.getDriveService(config.getServiceAccountJson());
+            byte[] content = driveClient.downloadFile(driveService, receipt.getDriveFileId());
+            harvest(receipt, content);
+        } catch (Exception e) {
+            log.error("Async harvest failed for receipt {}: {}", receipt.getId(), e.getMessage());
+        }
+    }
 }

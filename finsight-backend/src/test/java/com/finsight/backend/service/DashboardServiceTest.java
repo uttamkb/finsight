@@ -33,36 +33,29 @@ class DashboardServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        dashboardService = new DashboardService(receiptRepository, bankTransactionRepository);
+        dashboardService = new DashboardService(bankTransactionRepository, receiptRepository);
     }
 
     @Test
     void testGetStats_PopulatesRequiredMetrics() {
         String tenantId = "local_tenant";
-        when(receiptRepository.count()).thenReturn(10L);
-        when(bankTransactionRepository.count()).thenReturn(100L);
-        when(bankTransactionRepository.countUnreconciledByTenantId(tenantId)).thenReturn(5L);
-        when(bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(anyString(), any(), any(), any()))
-                .thenReturn(BigDecimal.valueOf(5000));
+        String accountType = "MAINTENANCE";
+        BankTransaction.AccountType accType = BankTransaction.AccountType.MAINTENANCE;
 
+        when(receiptRepository.countByTenantIdAndStatus(eq(tenantId), anyString())).thenReturn(10L);
+        when(bankTransactionRepository.countUnreconciledByTenantIdAndAccountType(eq(tenantId), eq(accType))).thenReturn(5L);
+        when(bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(anyString(), any(), any(), any(), any()))
+                .thenReturn(BigDecimal.valueOf(5000));
+        
         // Mock category insights
         CategoryInsightDto foodInsight = new CategoryInsightDto("Food", BigDecimal.valueOf(1000));
-        when(bankTransactionRepository.getTopSpendingByCategory(tenantId))
+        when(bankTransactionRepository.getTopSpendingByCategory(eq(tenantId), eq(accType)))
                 .thenReturn(List.of(foodInsight));
 
-        // Mock recent transactions for daily burn trend
-        BankTransaction tx = new BankTransaction();
-        tx.setTxDate(LocalDate.now());
-        tx.setAmount(BigDecimal.valueOf(100));
-        tx.setType(BankTransaction.TransactionType.DEBIT);
-        when(bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(eq(tenantId), any(Pageable.class)))
-                .thenReturn(List.of(tx));
-
-        DashboardStatsDto stats = dashboardService.getStats();
+        DashboardStatsDto stats = dashboardService.getStats(tenantId, accountType);
 
         assertNotNull(stats);
         assertEquals(10, stats.getTotalReceipts());
-        assertEquals(100, stats.getTotalBankTransactions());
         assertEquals(5, stats.getUnreconciledItems());
         assertEquals(0, BigDecimal.valueOf(5000).compareTo(stats.getTotalIncome()));
         
@@ -70,27 +63,20 @@ class DashboardServiceTest {
         assertNotNull(stats.getExpenseByCategory());
         assertEquals(1, stats.getExpenseByCategory().size());
         assertEquals("Food", stats.getExpenseByCategory().get(0).getCategoryName());
-
-        // Check daily spend
-        assertNotNull(stats.getLast30DaysDailySpend());
-        assertFalse(stats.getLast30DaysDailySpend().isEmpty());
     }
 
     @Test
     void testGetMonthlyHistory_GroupsCorrectly() {
         String tenantId = "local_tenant";
-        BankTransaction tx = new BankTransaction();
-        tx.setTxDate(LocalDate.of(2024, 1, 15));
-        tx.setAmount(BigDecimal.valueOf(100));
-        tx.setType(BankTransaction.TransactionType.DEBIT);
+        String accountType = "MAINTENANCE";
         
-        when(bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(eq(tenantId), any(Pageable.class)))
-                .thenReturn(List.of(tx));
+        when(bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(anyString(), any(), any(), any(), any()))
+                .thenReturn(BigDecimal.valueOf(100));
 
-        var history = dashboardService.getMonthlyHistory();
+        var history = dashboardService.getMonthlyHistory(tenantId, 6, accountType);
 
-        assertEquals(1, history.size());
-        assertEquals("2024-01", history.get(0).getMonth());
-        assertEquals(0, BigDecimal.valueOf(100).compareTo(history.get(0).getExpense()));
+        assertEquals(6, history.size()); // Should return 6 months of history
+        // Check the most recent month
+        assertEquals(0, BigDecimal.valueOf(100).compareTo(history.get(5).getExpense()));
     }
 }

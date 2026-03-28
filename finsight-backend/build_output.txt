@@ -1,0 +1,87 @@
+/var/folders/ys/8p9065y16xl87xh5tc8t5b2h0000gn/T/jansi-2.4.2-d40a5ecee3adf2ff-libjansi.jnilib.lck (Operation not permitted)
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.finsight:backend >------------------------
+[INFO] Building finsight-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.4.1:clean (default-clean) @ backend ---
+[INFO] Deleting /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/target
+[INFO] 
+[INFO] --- jacoco:0.8.11:prepare-agent (default) @ backend ---
+[INFO] argLine set to -javaagent:/Users/uttamkumar_barik/.m2/repository/org/jacoco/org.jacoco.agent/0.8.11/org.jacoco.agent-0.8.11-runtime.jar=destfile=/Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/target/jacoco.exec
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ backend ---
+[INFO] Copying 40 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 114 source files with javac [debug parameters release 21] to target/classes
+[INFO] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/main/java/com/finsight/backend/dto/BankTransactionDto.java: Some input files use or override a deprecated API.
+[INFO] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/main/java/com/finsight/backend/dto/BankTransactionDto.java: Recompile with -Xlint:deprecation for details.
+[INFO] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/main/java/com/finsight/backend/service/impl/TrainingDataServiceImpl.java: /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/main/java/com/finsight/backend/service/impl/TrainingDataServiceImpl.java uses unchecked or unsafe operations.
+[INFO] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/main/java/com/finsight/backend/service/impl/TrainingDataServiceImpl.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ backend ---
+[INFO] Copying 2 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 17 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/impl/TrainingDataServiceImplTest.java: /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/impl/TrainingDataServiceImplTest.java uses unchecked or unsafe operations.
+[INFO] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/impl/TrainingDataServiceImplTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] -------------------------------------------------------------
+[WARNING] COMPILATION WARNING : 
+[INFO] -------------------------------------------------------------
+[WARNING] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/controller/ReconciliationControllerTest.java:[29,6] org.springframework.boot.test.mock.mockito.MockBean in org.springframework.boot.test.mock.mockito has been deprecated and marked for removal
+[WARNING] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/controller/ReconciliationControllerTest.java:[32,6] org.springframework.boot.test.mock.mockito.MockBean in org.springframework.boot.test.mock.mockito has been deprecated and marked for removal
+[INFO] 2 warnings 
+[INFO] -------------------------------------------------------------
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/FlatTransactionEnricherTest.java:[20,13] cannot find symbol
+  symbol:   class FlatTransactionEnricher
+  location: class com.finsight.backend.service.FlatTransactionEnricherTest
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/controller/SurveyControllerTest.java:[33,49] constructor SurveyController in class com.finsight.backend.controller.SurveyController cannot be applied to given types;
+  required: com.finsight.backend.service.survey.SurveyConnectService,com.finsight.backend.service.survey.SurveyIngestionService,com.finsight.backend.service.survey.SurveyAiService,com.finsight.backend.service.survey.SurveyAnalyticsService,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository,com.finsight.backend.repository.survey.SurveyActionItemRepository
+  found:    com.finsight.backend.service.survey.SurveyConnectService,com.finsight.backend.service.survey.SurveyIngestionService,com.finsight.backend.service.survey.SurveyAiService,com.finsight.backend.service.survey.SurveyAnalyticsService,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/FlatTransactionEnricherTest.java:[25,24] cannot find symbol
+  symbol:   class FlatTransactionEnricher
+  location: class com.finsight.backend.service.FlatTransactionEnricherTest
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/survey/SurveyAiServiceTest.java:[28,21] constructor SurveyAiService in class com.finsight.backend.service.survey.SurveyAiService cannot be applied to given types;
+  required: com.finsight.backend.service.AppConfigService,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.repository.survey.SurveyActionItemRepository,com.finsight.backend.service.survey.SurveyAnalyticsService
+  found:    com.finsight.backend.service.AppConfigService,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.service.survey.SurveyAnalyticsService
+  reason: actual and formal argument lists differ in length
+[INFO] 4 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.037 s
+[INFO] Finished at: 2026-03-27T23:39:59+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:testCompile (default-testCompile) on project backend: Compilation failure: Compilation failure: 
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/FlatTransactionEnricherTest.java:[20,13] cannot find symbol
+[ERROR]   symbol:   class FlatTransactionEnricher
+[ERROR]   location: class com.finsight.backend.service.FlatTransactionEnricherTest
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/controller/SurveyControllerTest.java:[33,49] constructor SurveyController in class com.finsight.backend.controller.SurveyController cannot be applied to given types;
+[ERROR]   required: com.finsight.backend.service.survey.SurveyConnectService,com.finsight.backend.service.survey.SurveyIngestionService,com.finsight.backend.service.survey.SurveyAiService,com.finsight.backend.service.survey.SurveyAnalyticsService,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository,com.finsight.backend.repository.survey.SurveyActionItemRepository
+[ERROR]   found:    com.finsight.backend.service.survey.SurveyConnectService,com.finsight.backend.service.survey.SurveyIngestionService,com.finsight.backend.service.survey.SurveyAiService,com.finsight.backend.service.survey.SurveyAnalyticsService,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/FlatTransactionEnricherTest.java:[25,24] cannot find symbol
+[ERROR]   symbol:   class FlatTransactionEnricher
+[ERROR]   location: class com.finsight.backend.service.FlatTransactionEnricherTest
+[ERROR] /Users/uttamkumar_barik/Documents/Antigravity/java/finsight-backend/src/test/java/com/finsight/backend/service/survey/SurveyAiServiceTest.java:[28,21] constructor SurveyAiService in class com.finsight.backend.service.survey.SurveyAiService cannot be applied to given types;
+[ERROR]   required: com.finsight.backend.service.AppConfigService,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.repository.survey.SurveyActionItemRepository,com.finsight.backend.service.survey.SurveyAnalyticsService
+[ERROR]   found:    com.finsight.backend.service.AppConfigService,com.finsight.backend.repository.survey.SurveyResponseRepository,com.finsight.backend.repository.survey.SurveyInsightRepository,com.finsight.backend.repository.survey.SurveyRepository,com.finsight.backend.service.survey.SurveyAnalyticsService
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

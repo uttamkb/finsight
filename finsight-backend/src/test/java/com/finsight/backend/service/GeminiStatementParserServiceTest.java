@@ -56,7 +56,7 @@ class GeminiStatementParserServiceTest {
 
     /** Creates a real, non-empty temp file on disk. Cleaned up via deleteOnExit(). */
     private File createTempPdfFile(String prefix) throws Exception {
-        File tmpDir = new File(System.getProperty("java.io.tmpdir", "/tmp"));
+        File tmpDir = new File("target/test-temp");
         if (!tmpDir.exists()) tmpDir.mkdirs();
         File tempFile = File.createTempFile(prefix, ".pdf", tmpDir);
         tempFile.deleteOnExit();

@@ -8,13 +8,12 @@ import com.finsight.backend.service.AppConfigService;
 import com.finsight.backend.service.VendorDictionaryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -97,5 +96,25 @@ class TrainingDataServiceImplTest {
         // Assert
         assertFalse(Files.exists(jsonPath));
         assertFalse(Files.exists(imgPath));
+    }
+
+    @Test
+    void testHarvestAsync_Success() throws Exception {
+        // Arrange
+        Receipt receipt = new Receipt();
+        receipt.setId(1L);
+        receipt.setDriveFileId("drive-123");
+
+        com.finsight.backend.entity.AppConfig config = new com.finsight.backend.entity.AppConfig();
+        config.setServiceAccountJson("{}");
+        when(appConfigService.getConfig()).thenReturn(config);
+        when(driveClient.getDriveService(anyString())).thenReturn(null);
+        when(driveClient.downloadFile(any(), eq("drive-123"))).thenReturn("fake-content".getBytes());
+
+        // Act
+        trainingDataService.harvestAsync(receipt);
+
+        // Assert
+        verify(driveClient).downloadFile(any(), eq("drive-123"));
     }
 }

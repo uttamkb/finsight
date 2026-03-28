@@ -37,11 +37,11 @@ const ISSUE_TYPES = [
 function ScoreBadge({ score }: { score: number | null }) {
   if (score === null || score === undefined) return <span className="text-base-content/60 text-xs">—</span>;
   const pct = Math.round(score);
-  const color = pct >= 80 ? "text-success bg-success/10 border-success/30"
-              : pct >= 50 ? "text-warning bg-warning/10 border-amber-500/30"
-              : "text-base-content/60 bg-base-300/30 border-muted/30";
+  const color = pct >= 80 ? "badge-success"
+              : pct >= 50 ? "badge-warning"
+              : "badge-ghost";
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${color}`}>
+    <span className={`badge badge-sm font-bold ${color}`}>
       {pct}/100
     </span>
   );
@@ -49,11 +49,11 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 function MatchTypeBadge({ type }: { type: string | null }) {
   if (!type) return null;
-  const color = type === "EXACT" ? "text-success border-success/30 bg-success/10"
-              : type === "FUZZY" ? "text-warning border-amber-500/30 bg-warning/10"
-              : "text-base-content/60 border-muted/30 bg-base-300/10";
+  const color = type === "EXACT" ? "badge-success"
+              : type === "FUZZY" ? "badge-warning"
+              : "badge-ghost";
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${color}`}>
+    <span className={`badge badge-sm font-bold badge-outline ${color}`}>
       {type}
     </span>
   );
@@ -146,48 +146,57 @@ export default function ReconciliationPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 max-w-7xl animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight inline-flex items-center gap-3">
-            <CopyCheck className="h-8 w-8 text-primary" />
-            Reconciliation Engine
-          </h1>
-          <p className="text-base-content/60 mt-2">
-            Review and resolve flagged discrepancies. Similarity scoring helps identify fuzzy matches.
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="flex items-center gap-5">
+          <div className="p-3 bg-primary/10 rounded-2xl glow-primary">
+            <CopyCheck className="h-10 w-10 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight leading-tight">Reconciliation Engine</h1>
+            <p className="text-base-content/60 font-medium text-lg uppercase tracking-wider text-[11px] mt-1">Cross-Validation & Forensic Audit</p>
+          </div>
         </div>
         <button
           onClick={handleExportCsv}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary border border-primary/30 text-sm font-medium hover:bg-primary/20 transition-colors"
+          className="btn btn-ghost border-base-content/10 bg-base-100/50 backdrop-blur-md h-12 px-8 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm hover:glow-primary hover:text-primary active:scale-95 flex items-center gap-3"
         >
-          <Download className="h-4 w-4" />
-          Export CSV
+          <Download className="h-5 w-5" />
+          Export Audit Trail
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-destructive/20 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Attention Required</p>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            <p className="text-3xl font-bold text-destructive">{stats.unresolved}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10 [animation-delay:100ms]">
+        <div className="glass-panel p-8 rounded-[2.5rem] border-error/10 shadow-xl transition-all hover:glow-accent hover:-translate-y-1">
+          <p className="text-[10px] font-black text-base-content/50 uppercase tracking-[0.2em] mb-4">Anomalies Detected</p>
+          <div className="flex items-center justify-between">
+            <p className="text-5xl font-black text-error font-mono tracking-tighter leading-none">{stats.unresolved}</p>
+            <div className="p-4 bg-error/10 rounded-2xl animate-pulse">
+              <AlertTriangle className="h-8 w-8 text-error " />
+            </div>
           </div>
+          <p className="text-[11px] text-base-content/40 mt-6 font-bold uppercase tracking-widest">Awaiting Human Verification</p>
         </div>
-        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-success/20 transition-all hover:scale-[1.02]">
-          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Manually Resolved</p>
-          <p className="text-3xl font-bold text-success">{stats.resolved}</p>
+        <div className="glass-panel p-8 rounded-[2.5rem] border-success/10 shadow-xl transition-all hover:glow-secondary hover:-translate-y-1">
+          <p className="text-[10px] font-black text-base-content/50 uppercase tracking-[0.2em] mb-4">Accuracy Verified</p>
+          <div className="flex items-center justify-between">
+            <p className="text-5xl font-black text-success font-mono tracking-tighter leading-none">{stats.resolved}</p>
+            <div className="p-4 bg-success/10 rounded-2xl">
+              <CheckCheck className="h-8 w-8 text-success" />
+            </div>
+          </div>
+          <p className="text-[11px] text-base-content/40 mt-6 font-bold uppercase tracking-widest">Audit Trail Synchronized</p>
         </div>
       </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 mb-4">
         <Filter className="h-4 w-4 text-base-content/60" />
-        <label className="text-sm text-base-content/60">Filter by type:</label>
+        <label className="text-sm text-base-content/60 font-medium">Filter by type:</label>
         <select
           value={issueTypeFilter}
           onChange={e => setIssueTypeFilter(e.target.value)}
-          className="text-sm rounded-lg bg-base-200 border border-base-content/20 px-3 py-1.5 text-base-content focus:outline-none focus:ring-1 focus:ring-primary"
+          className="select select-sm select-bordered bg-base-200 text-base-content focus:select-primary"
         >
           {ISSUE_TYPES.map(t => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -196,25 +205,41 @@ export default function ReconciliationPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-destructive/20 bg-base-200 overflow-hidden shadow-lg shadow-destructive/5">
-        <div className="p-4 bg-destructive/10 border-b border-destructive/20">
-          <h2 className="font-semibold text-destructive inline-flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" /> Audit Trail
-          </h2>
+      <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-2xl [animation-delay:200ms] border-primary/5">
+        <div className="p-6 border-b border-base-content/5 bg-base-200/30 backdrop-blur flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-xl">
+              <AlertCircle className="h-5 w-5 text-primary" />
+            </div>
+            <h2 className="text-2xl font-black uppercase tracking-tighter">Forensic Audit Trail</h2>
+          </div>
+          <div className="flex items-center gap-4 bg-base-100/50 p-2 px-4 rounded-2xl border border-base-content/5 shadow-inner">
+            <Filter className="h-4 w-4 text-base-content/40" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Vector Filter:</span>
+            <select
+              value={issueTypeFilter}
+              onChange={e => setIssueTypeFilter(e.target.value)}
+              className="bg-transparent border-none focus:ring-0 text-xs font-black uppercase tracking-widest text-primary cursor-pointer"
+            >
+              {ISSUE_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
+          <table className="table w-full">
+            <thead className="bg-base-300/40 text-base-content/50 border-b border-base-content/5">
               <tr>
-                <th scope="col" className="px-6 py-4 font-medium">Issue Detail</th>
-                <th scope="col" className="px-6 py-4 font-medium">Type</th>
-                <th scope="col" className="px-6 py-4 font-medium">Bank Transaction</th>
-                <th scope="col" className="px-6 py-4 font-medium">Receipt</th>
-                <th scope="col" className="px-6 py-4 font-medium text-center">Score / Match</th>
-                <th scope="col" className="px-6 py-4 font-medium text-center">Action</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Audit Timestamp</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Variance Type</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Financial Inflow/Outflow</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Validation Records</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-center">Confidence Matrix</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-center">Intervention</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-primary/5">
+            <tbody className="divide-y divide-base-content/5">
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-10 text-center text-base-content/60">
@@ -232,62 +257,62 @@ export default function ReconciliationPage() {
                 </tr>
               ) : (
                 unresolvedAudits.map((audit) => (
-                  <tr key={audit.id} className="hover:bg-base-300/30 transition-colors">
-                    <td className="px-6 py-4 max-w-[200px]">
-                      <span className="text-xs font-medium text-warning block mb-1">
+                  <tr key={audit.id} className="hover:bg-primary/5 transition-all group">
+                    <td className="px-8 py-6 max-w-[220px]">
+                      <span className="text-[10px] font-black text-primary block mb-1.5 uppercase tracking-widest">
                         {new Date(audit.createdAt).toLocaleDateString()}
                       </span>
-                      <span className="text-xs text-base-content/60 line-clamp-2">{audit.issueDescription}</span>
+                      <span className="text-sm text-base-content/80 font-bold leading-relaxed line-clamp-2 italic">{audit.issueDescription}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full bg-destructive/10 text-destructive text-[10px] font-bold tracking-wide border border-destructive/20">
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <span className="px-3 py-1.5 rounded-xl bg-error/10 text-error text-[10px] font-black uppercase tracking-widest border border-error/10">
                         {audit.issueType?.replace(/_/g, ' ') || 'UNMATCHED'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-8 py-6">
                       {audit.transaction ? (
-                        <div className="rounded-md border p-2 bg-base-300/20 border-dotted border-muted-foreground/30">
-                          <div className="font-medium text-xs truncate max-w-[150px]" title={audit.transaction.description}>{audit.transaction.description}</div>
-                          <div className="text-xs mt-1 text-base-content/60 flex justify-between">
-                            <span>{audit.transaction.txDate}</span>
-                            <span className="font-mono text-destructive">-{formatCurrency(audit.transaction.amount, currency)}</span>
+                        <div className="rounded-2xl border border-dashed p-3 bg-base-100/50 border-base-content/10 shadow-sm group-hover:border-primary/30 transition-colors">
+                          <div className="font-black text-[12px] truncate max-w-[180px] uppercase tracking-tight" title={audit.transaction.description}>{audit.transaction.description}</div>
+                          <div className="text-[10px] mt-2 text-base-content/50 flex justify-between items-center gap-3">
+                            <span className="font-bold">{audit.transaction.txDate}</span>
+                            <span className="font-mono font-black text-base text-error">-{formatCurrency(audit.transaction.amount, currency)}</span>
                           </div>
                         </div>
                       ) : (
-                        <span className="text-base-content/60 text-xs italic opacity-50">None</span>
+                        <div className="h-14 flex items-center justify-center border border-dashed border-base-content/10 rounded-2xl opacity-30 text-[10px] font-black uppercase tracking-widest">MISSING RECORD</div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-8 py-6">
                       {audit.receipt ? (
-                        <div className="rounded-md border p-2 bg-base-300/20 border-dotted border-muted-foreground/30">
-                          <div className="font-medium text-xs truncate max-w-[150px]" title={audit.receipt.vendor}>{audit.receipt.vendor}</div>
-                          <div className="text-xs mt-1 text-base-content/60 flex justify-between">
-                            <span>{audit.receipt.date}</span>
-                            <span className="font-mono text-success">+{formatCurrency(audit.receipt.amount, currency)}</span>
+                        <div className="rounded-2xl border border-dashed p-3 bg-base-100/50 border-base-content/10 shadow-sm group-hover:border-success/30 transition-colors">
+                          <div className="font-black text-[12px] truncate max-w-[180px] uppercase tracking-tight" title={audit.receipt.vendor}>{audit.receipt.vendor}</div>
+                          <div className="text-[10px] mt-2 text-base-content/50 flex justify-between items-center gap-3">
+                            <span className="font-bold">{audit.receipt.date}</span>
+                            <span className="font-mono font-black text-base text-success">+{formatCurrency(audit.receipt.amount, currency)}</span>
                           </div>
                         </div>
                       ) : (
-                        <span className="text-base-content/60 text-xs italic opacity-50">None</span>
+                        <div className="h-14 flex items-center justify-center border border-dashed border-base-content/10 rounded-2xl opacity-30 text-[10px] font-black uppercase tracking-widest">MISSING RECEIPT</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex flex-col items-center gap-1">
+                    <td className="px-8 py-6 whitespace-nowrap text-center">
+                      <div className="flex flex-col items-center gap-2">
                         <ScoreBadge score={audit.similarityScore} />
                         <MatchTypeBadge type={audit.matchType} />
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-8 py-6 whitespace-nowrap text-center">
                       <button
                         onClick={() => handleResolve(audit.id)}
                         disabled={resolvingId === audit.id}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors disabled:opacity-50"
+                        className="btn btn-ghost btn-sm h-10 px-6 rounded-xl border border-base-content/5 font-black uppercase text-[10px] tracking-widest hover:bg-success hover:text-success-content hover:border-success transition-all active:scale-95"
                       >
                         {resolvingId === audit.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <CheckCheck className="h-3 w-3" />
+                          <CheckCheck className="h-4 w-4" />
                         )}
-                        Resolve
+                        Authorize
                       </button>
                     </td>
                   </tr>

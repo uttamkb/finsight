@@ -1,22 +1,22 @@
 package com.finsight.backend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finsight.backend.dto.HeaderMetadata;
 import com.finsight.backend.dto.ParsedBankTransactionDto;
+import com.finsight.backend.entity.ParserPattern;
+import com.finsight.backend.util.RuntimeErrorLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * Dedicated parser for CSV bank statements.
@@ -26,33 +26,42 @@ import java.util.Locale;
  */
 @Component
 public class CsvStatementParser {
-
     private static final Logger log = LoggerFactory.getLogger(CsvStatementParser.class);
+    private final ParserPatternService patternService;
+    private final ObjectMapper objectMapper;
+
+    public CsvStatementParser(ParserPatternService patternService, ObjectMapper objectMapper) {
+        this.patternService = patternService;
+        this.objectMapper = objectMapper;
+    }
 
     private static final List<DateTimeFormatter> DATE_FORMATS = List.of(
         DateTimeFormatter.ofPattern("yyyy-MM-dd"),
         DateTimeFormatter.ofPattern("dd/MM/yyyy"),
         DateTimeFormatter.ofPattern("dd-MM-yyyy"),
         DateTimeFormatter.ofPattern("MM/dd/yyyy"),
-        DateTimeFormatter.ofPattern("dd MMM yyyy"),
-        DateTimeFormatter.ofPattern("d MMM yyyy"),
-        DateTimeFormatter.ofPattern("MMM dd, yyyy"),
+        DateTimeFormatter.ofPattern("dd/MMM/yyyy", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("d/MMM/yyyy", Locale.ENGLISH),
         DateTimeFormatter.ofPattern("dd/MM/yy"),
         DateTimeFormatter.ofPattern("d/M/yyyy"),
         DateTimeFormatter.ofPattern("d-M-yyyy"),
         DateTimeFormatter.ofPattern("yyyy/MM/dd"),
         DateTimeFormatter.ofPattern("d-MMM-yyyy", Locale.ENGLISH),
-        DateTimeFormatter.ofPattern("d MMM, yyyy", Locale.ENGLISH)
+        DateTimeFormatter.ofPattern("d-MMM-yy", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("dd-MMM-yy", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("d MMM, yyyy", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("MMMM dd, yyyy", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("MM/dd/yyyy h:mm:ss a", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("dd/MM/yyyy h:mm:ss a", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("dd-MM-yyyy hh:mm a", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("dd-MM-yyyy h:mm a", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm:ss", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss", Locale.ENGLISH)
     );
 
-    /**
-     * Parses a CSV multipart file and returns a list of raw parsed transactions.
-     * Limits input to 10,000 non-empty lines to prevent memory exhaustion.
-     */
-    public List<ParsedBankTransactionDto> parse(File file) throws Exception {
-        log.info("CsvStatementParser: parsing '{}'", file.getName());
+    public List<ParsedBankTransactionDto> parse(File file, String tenantId) throws Exception {
+        log.info("CsvStatementParser: parsing '{}' for tenant '{}'", file.getName(), tenantId);
 
-        // --- Step 1: Read up to 10,000 non-empty lines ---
         List<String> allLines = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
             String line;
@@ -62,40 +71,37 @@ public class CsvStatementParser {
         }
         if (allLines.isEmpty()) throw new IllegalArgumentException("CSV file is empty.");
 
-        // --- Step 2: Header detection (scan first 20 lines, pick best scoring candidate) ---
-        int headerLineIndex = -1;
-        int maxScore = -1;
-        String delimiter = ",";
-        int dateIdx = -1, descIdx = -1, amountIdx = -1, debitIdx = -1, creditIdx = -1;
+        HeaderMetadata meta = detectHeader(allLines);
+        if (meta.getHeaderRowIndex() == -1) {
+            throw new IllegalArgumentException("Unable to identify CSV headers.");
+        }
 
-        for (int i = 0; i < Math.min(20, allLines.size()); i++) {
-            String cur = allLines.get(i);
-            String delim = cur.contains(";") ? ";" : cur.contains("\t") ? "\t" : ",";
-            String[] parts = splitCsv(cur, delim);
+        String signature = patternService.generateSignature(meta.getHeaders());
+        Optional<ParserPattern> pattern = patternService.findMatchingPattern(tenantId, signature);
 
-            int score = 0;
-            int td = -1, tDesc = -1, tAmt = -1, tDeb = -1, tCre = -1;
-            for (int j = 0; j < parts.length; j++) {
-                String h = parts[j].trim().toLowerCase().replaceAll("[^a-z ]", "");
-                if (h.matches("date|txdate|transaction date|value date|posting date")) { td = j; score += 20; }
-                else if (h.matches("description|narration|particulars|remarks|details|chq details|naration")) { tDesc = j; score += 20; }
-                else if (h.matches("amount|txn amount|transaction amount")) { tAmt = j; score += 15; }
-                else if (h.matches("debit|withdrawal|withdrawal amt|dr")) { tDeb = j; score += 10; }
-                else if (h.matches("credit|deposit|deposit amt|cr")) { tCre = j; score += 10; }
-                else if (h.matches("balance|closing balance")) { score += 5; }
-            }
+        int headerLineIndex = meta.getHeaderRowIndex();
+        String delimiter = meta.getDelimiter();
+        Map<String, Integer> mapping;
 
-            if (score > maxScore && score >= 40) {
-                maxScore = score; headerLineIndex = i; delimiter = delim;
-                dateIdx = td; descIdx = tDesc; amountIdx = tAmt; debitIdx = tDeb; creditIdx = tCre;
+        if (pattern.isPresent()) {
+            log.info("Using learned pattern {} (confidence: {})", pattern.get().getPatternGroupId(), pattern.get().getConfidenceScore());
+            mapping = objectMapper.readValue(pattern.get().getColumnMapping(), 
+                      new com.fasterxml.jackson.core.type.TypeReference<Map<String, Integer>>() {});
+            headerLineIndex = pattern.get().getHeaderRowIndex() != null ? pattern.get().getHeaderRowIndex() : headerLineIndex;
+        } else {
+            log.info("No pattern found. Using heuristic mapping (confidence: {})", meta.getConfidenceScore());
+            mapping = meta.getColumnMapping();
+            
+            if (meta.getConfidenceScore() >= 60) {
+                patternService.savePattern(tenantId, signature, mapping, 0.8, "CSV", headerLineIndex);
             }
         }
 
-        if (headerLineIndex == -1) {
-            throw new IllegalArgumentException(
-                "Unable to identify CSV headers. Ensure column names like 'Date', 'Description', and 'Amount' are present.");
-        }
-        log.info("Header detected at line {} with delimiter '{}'. Score={}", headerLineIndex, delimiter, maxScore);
+        int dateIdx = mapping.getOrDefault("date", -1);
+        int descIdx = mapping.getOrDefault("description", -1);
+        int amountIdx = mapping.getOrDefault("amount", -1);
+        int debitIdx = mapping.getOrDefault("debit", -1);
+        int creditIdx = mapping.getOrDefault("credit", -1);
 
         // --- Step 3: Parse data rows ---
         List<ParsedBankTransactionDto> results = new ArrayList<>();
@@ -121,6 +127,13 @@ public class CsvStatementParser {
             LocalDate txDate = parseDateRobustly(rawDate);
             if (txDate == null) {
                 log.warn("Row {}: Cannot parse date '{}', skipping.", rowNum, rawDate);
+                RuntimeErrorLogger.logValidation(
+                    RuntimeErrorLogger.Module.PARSER,
+                    "DateParseFailure",
+                    java.util.Map.of("rawDate", rawDate, "row", String.valueOf(rowNum)),
+                    "A parseable date string",
+                    "Could not parse: " + rawDate
+                );
                 return null;
             }
 
@@ -169,6 +182,53 @@ public class CsvStatementParser {
             log.warn("Row {}: Failed to parse - {}. Cause: {}", rowNum, line, e.getMessage());
             return null;
         }
+    }
+
+    public HeaderMetadata detectHeader(List<String> allLines) {
+        int headerLineIndex = -1;
+        int maxScore = -1;
+        String delimiter = ",";
+        Map<String, Integer> mapping = new HashMap<>();
+        List<String> detectedHeaders = new ArrayList<>();
+
+        for (int i = 0; i < Math.min(30, allLines.size()); i++) {
+            String cur = allLines.get(i);
+            String delim = cur.contains(";") ? ";" : cur.contains("\t") ? "\t" : ",";
+            String[] parts = splitCsv(cur, delim);
+
+            int score = 0;
+            Map<String, Integer> tMap = new HashMap<>();
+            List<String> tHeaders = new ArrayList<>();
+            
+            for (int j = 0; j < parts.length; j++) {
+                String raw = parts[j].trim();
+                tHeaders.add(raw);
+                if (raw.isEmpty()) continue;
+                String h = raw.toLowerCase().replaceAll("[^a-z ]", "");
+                if (h.contains("date") || h.contains("tx date") || h.contains("value date") || h.contains("txn date")) { tMap.put("date", j); score += 20; }
+                else if (h.contains("description") || h.contains("narration") || h.contains("particulars") || h.contains("details") || h.contains("remarks")) { tMap.put("description", j); score += 20; }
+                else if (h.contains("amount") || h.contains("txn amount") || h.contains("transaction amount")) { tMap.put("amount", j); score += 15; }
+                else if (h.contains("debit") || h.contains("withdrawal") || h.matches(".*\\bdr\\b.*")) { tMap.put("debit", j); score += 10; }
+                else if (h.contains("credit") || h.contains("deposit") || h.matches(".*\\bcr\\b.*")) { tMap.put("credit", j); score += 10; }
+                else if (h.matches("balance|closing balance")) { score += 5; }
+            }
+
+            if (score > maxScore && score >= 40) {
+                maxScore = score;
+                headerLineIndex = i;
+                delimiter = delim;
+                mapping = tMap;
+                detectedHeaders = tHeaders;
+            }
+        }
+
+        return HeaderMetadata.builder()
+                .headerRowIndex(headerLineIndex)
+                .headers(detectedHeaders)
+                .columnMapping(mapping)
+                .confidenceScore(maxScore)
+                .delimiter(delimiter)
+                .build();
     }
 
     /** Tries all known date formats until one succeeds. Returns null if none match. */

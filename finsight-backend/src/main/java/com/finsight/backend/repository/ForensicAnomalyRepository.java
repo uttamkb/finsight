@@ -7,5 +7,5 @@ import java.util.List;
 
 @Repository
 public interface ForensicAnomalyRepository extends JpaRepository<ForensicAnomaly, Long> {
-    List<ForensicAnomaly> findByTenantIdOrderByDetectedAtDesc(String tenantId);
+    List<ForensicAnomaly> findByTenantIdOrderByTxDateDesc(String tenantId);
 }

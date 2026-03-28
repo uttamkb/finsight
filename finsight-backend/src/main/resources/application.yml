@@ -1,7 +1,12 @@
 spring:
+  flyway:
+    mixed: true
+  # SWITCH: Change to 'cloud' to use Turso, or keep 'local' for SQLite
+  # Alternatively, run with -Dspring.profiles.active=cloud
+  profiles:
+    active: ${DB_MODE:local}
+
   datasource:
-    url: "jdbc:sqlite:finsight.db"
-    driver-class-name: org.sqlite.JDBC
     hikari:
       connection-test-query: SELECT 1
       maximum-pool-size: 10
@@ -13,24 +18,49 @@ spring:
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
-      ddl-auto: update          # Use Hibernate to create schema if Flyway is blocked
-    show-sql: false               # Set to true for debug
+      ddl-auto: update
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
-  flyway:
-    enabled: false
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    out-of-order: false
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
 
+---
+# LOCAL PROFILE (Standard SQLite)
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: "jdbc:sqlite:finsight.db"
+    driver-class-name: org.sqlite.JDBC
+
+---
+# CLOUD PROFILE (Turso / LibSQL)
+spring:
+  config:
+    activate:
+      on-profile: cloud
+  datasource:
+    # JDBC URL for tech.turso
+    url: "jdbc:turso:https://finsight-uttamkb.aws-ap-south-1.turso.io?sync=true"
+    driver-class-name: tech.turso.JDBC
+    username: "token"
+    password: ${TURSO_AUTH_TOKEN}
+    hikari:
+      maximum-pool-size: 5
+      connection-test-query: SELECT 1
+  flyway:
+    enabled: true
+    connect-retries: 3
+
+---
 app:
   api:
-    secret-key: ${APP_API_SECRET_KEY:finsight_local_dev_secret}   # Override via env var in production
+    secret-key: ${APP_API_SECRET_KEY:dev_secret_only_for_local}
   cors:
     allowed-origins:
       - http://localhost:3000
@@ -40,12 +70,16 @@ app:
     service-account-json: ${SERVICE_ACCOUNT_JSON:}
     gemini-api-key: ${GEMINI_API_KEY:}
 
+ai:
+  gemini:
+    model: ${GEMINI_MODEL:models/gemini-2.5-flash}
+
 server:
   port: 8080
   tomcat:
     basedir: ./tmp
   error:
-    include-message: never          # Security: never expose exception messages to API consumers
+    include-message: never
     include-stacktrace: never
     include-binding-errors: never
 
@@ -54,20 +88,6 @@ management:
     web:
       exposure:
         include: health,info
-  endpoint:
-    health:
-      show-details: when-authorized
-  info:
-    env:
-      enabled: true
-
-info:
-  app:
-    name: FinSight Backend
-    description: Apartment Association Finance Management API
-    version: "@project.version@"
-  java:
-    version: "@java.version@"
 
 logging:
   level:
@@ -75,5 +95,7 @@ logging:
     org.flywaydb: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
+    org.apache.pdfbox: ERROR
+    org.apache.fontbox: ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

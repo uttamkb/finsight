@@ -124,18 +124,18 @@ export default function ReceiptsPage() {
   };
 
   return (
-    <div className="container mx-auto py-10 px-4 max-w-7xl">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/20 rounded-lg">
-            <ReceiptIcon className="h-8 w-8 text-primary" />
+    <div className="container mx-auto py-10 px-4 max-w-7xl animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="flex items-center gap-5">
+          <div className="p-3 bg-primary/10 rounded-2xl glow-primary">
+            <ReceiptIcon className="h-10 w-10 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Receipts</h1>
-            <p className="text-base-content/60 text-sm">Manage and sync association expense receipts</p>
+            <h1 className="text-4xl font-black tracking-tight leading-tight">Receipt Repository</h1>
+            <p className="text-base-content/60 font-medium text-lg uppercase tracking-wider text-[11px] mt-1">AI-Powered Ingestion Pipeline</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button 
             onClick={async () => {
               setShowLogs(true);
@@ -149,19 +149,18 @@ export default function ReceiptsPage() {
                 console.error("Failed to fetch logs history:", e);
               }
             }}
-            className="flex items-center gap-2 bg-base-300 text-base-content/60 px-4 py-2.5 rounded-xl hover:bg-base-300/80 transition-all font-semibold"
-            title="View Sync Logs"
+            className="btn btn-ghost border-base-content/10 bg-base-100/50 backdrop-blur-md h-12 px-6 rounded-2xl hover:bg-base-200 transition-all font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-sm"
           >
-            <ScrollText className="h-4 w-4" />
-            <span>Logs</span>
+            <ScrollText className="h-5 w-5 text-primary" />
+            <span>Audit Logs</span>
           </button>
           <button 
             onClick={handleSync}
             disabled={isSyncing}
-            className="flex items-center gap-2 bg-primary text-primary-content px-6 py-2.5 rounded-xl hover:bg-primary/90 transition-all font-semibold shadow-lg shadow-primary/20 disabled:opacity-50"
+            className="btn btn-primary h-12 px-8 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-primary/30 disabled:opacity-50 flex items-center gap-3 hover:scale-105 active:scale-95"
           >
-            {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {isSyncing ? "Syncing..." : "Sync Now"}
+            {isSyncing ? <RefreshCw className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
+            {isSyncing ? "Syncing..." : "Initiate Sync"}
           </button>
         </div>
       </div>
@@ -311,56 +310,58 @@ export default function ReceiptsPage() {
       )}
 
       {/* Stats bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10">
-          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Total Processed</p>
-          <p className="text-2xl font-bold">{totalElements}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 [animation-delay:100ms]">
+        <div className="glass-panel p-6 rounded-[2rem] border-primary/10 shadow-xl transition-all hover:glow-primary hover:-translate-y-1">
+          <p className="text-[10px] font-black text-base-content/50 uppercase tracking-[0.2em] mb-3">Total Ingested</p>
+          <p className="text-4xl font-black font-mono tracking-tighter text-primary leading-none">{totalElements}</p>
+          <p className="text-[11px] text-base-content/30 mt-3 font-bold uppercase">Archived Receipts</p>
         </div>
-        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10">
-          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Last Sync</p>
-          <p className="text-2xl font-bold">Today</p>
+        <div className="glass-panel p-6 rounded-[2rem] border-primary/10 shadow-xl transition-all hover:glow-secondary hover:-translate-y-1">
+          <p className="text-[10px] font-black text-base-content/50 uppercase tracking-[0.2em] mb-3">Pipeline Health</p>
+          <p className="text-4xl font-black font-mono tracking-tighter text-success leading-none">Healthy</p>
+          <p className="text-[11px] text-base-content/30 mt-3 font-bold uppercase">Ready for Inflow</p>
         </div>
-        <div className="p-4 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10">
-          <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider mb-1">Local Mode Efficiency</p>
-          <p className="text-2xl font-bold text-success">92%</p>
+        <div className="glass-panel p-6 rounded-[2rem] border-primary/10 shadow-xl transition-all hover:glow-accent hover:-translate-y-1">
+          <p className="text-[10px] font-black text-base-content/50 uppercase tracking-[0.2em] mb-3">AI Accuracy</p>
+          <p className="text-4xl font-black font-mono tracking-tighter text-base-content leading-none">92%</p>
+          <p className="text-[11px] text-base-content/30 mt-3 font-bold uppercase">OCR Confidence Avg</p>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-base-200 overflow-hidden shadow-sm">
-        <div className="p-4 border-b bg-base-300/30 flex items-center justify-between">
-          <div className="flex items-center gap-2 max-w-md w-full">
-            <Search className="h-4 w-4 text-base-content/60" />
+      <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-2xl [animation-delay:200ms] border-primary/5">
+        <div className="p-6 border-b border-base-content/5 bg-base-200/30 backdrop-blur flex items-center justify-between gap-6 overflow-x-auto">
+          <div className="flex items-center gap-4 max-w-xl w-full bg-base-100/50 rounded-2xl px-5 h-12 border border-base-content/5 shadow-inner transition-focus-within focus-within:border-primary/40 focus-within:bg-base-100">
+            <Search className="h-5 w-5 text-base-content/30" />
             <input 
-              placeholder="Search vendors or files..." 
-              className="bg-transparent border-none focus:ring-0 text-sm w-full"
+              placeholder="Search vendor records, filenames, or amounts..." 
+              className="bg-transparent border-none focus:ring-0 text-sm w-full font-bold placeholder:text-base-content/20"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setPage(0); // Reset to first page on search
+                setPage(0);
               }}
             />
           </div>
-          <button className="flex items-center gap-2 text-sm font-medium text-base-content/60 hover:text-base-content px-3 py-1 bg-base-300 rounded-lg transition-colors">
-            <Filter className="h-3.5 w-3.5" />
-            Filters
+          <button className="btn btn-ghost h-12 rounded-2xl px-6 bg-base-100/50 border-base-content/5 flex items-center gap-3 font-black text-[10px] uppercase tracking-widest hover:bg-primary/10 hover:text-primary transition-all">
+            <Filter className="h-4 w-4" />
+            Advanced Filter
           </button>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-base-content/60 uppercase bg-base-300/10 border-b">
+          <table className="table w-full">
+            <thead className="bg-base-300/40 text-base-content/50">
               <tr>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Vendor</th>
-                <th className="px-6 py-4 font-medium">Category</th>
-                <th className="px-6 py-4 font-medium text-right">Amount</th>
-                <th className="px-6 py-4 font-medium">Mode</th>
-                <th className="px-6 py-4 font-medium text-center">Confidence</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium"></th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Transaction Date</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Vendor Verification</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Journal Category</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-right">Amount</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Extraction Intelligence</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Status</th>
+                <th className="px-8 py-5"></th>
               </tr>
             </thead>
-            <tbody className="divide-y border-muted/20">
+            <tbody className="divide-y divide-base-content/5 font-medium">
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i} className="animate-pulse">
@@ -378,48 +379,48 @@ export default function ReceiptsPage() {
                 </tr>
               ) : (
                 receipts.map((r) => (
-                  <tr key={r.id} className="hover:bg-primary/5 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium">{r.date || "N/A"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-semibold">{r.vendor || "Unknown"}</div>
-                      <div className="text-xs text-base-content/60 truncate max-w-[150px]">{r.fileName}</div>
+                  <tr key={r.id} className="hover:bg-primary/5 transition-all group">
+                    <td className="px-8 py-6 whitespace-nowrap font-mono text-xs font-bold text-base-content/60 group-hover:text-primary transition-colors">{r.date || "N/A"}</td>
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="font-bold text-base group-hover:text-base-content transition-colors">{r.vendor || "Unknown"}</div>
+                      <div className="text-[10px] text-base-content/30 font-bold uppercase tracking-widest mt-0.5 truncate max-w-[180px]">{r.fileName}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold">
-                        {r.category || "Uncategorized"}
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <span className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider border border-primary/10">
+                        {r.category || "General Expense"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right font-mono font-bold text-primary">
+                    <td className="px-8 py-6 whitespace-nowrap text-right font-mono font-black text-lg text-primary">
                       {formatCurrency(r.amount, currency)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-md bg-base-300 text-[10px] font-bold tracking-tight">
-                        {r.ocrModeUsed}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div className="w-12 h-1.5 bg-base-300 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${r.ocrConfidence > 0.8 ? "bg-success" : "bg-warning"}`}
-                            style={{ width: `${r.ocrConfidence * 100}%` }}
-                          />
+                    <td className="px-8 py-6 whitespace-nowrap">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-black text-base-content/40 uppercase tracking-[0.1em]">
+                          {r.ocrModeUsed} Intelligence
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 h-1.5 bg-base-300 rounded-full overflow-hidden shadow-inner">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${r.ocrConfidence > 0.85 ? "bg-success" : r.ocrConfidence > 0.6 ? "bg-warning" : "bg-error"}`}
+                              style={{ width: `${r.ocrConfidence * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-black font-mono">{(r.ocrConfidence * 100).toFixed(0)}%</span>
                         </div>
-                        <span className="text-[10px] font-mono">{(r.ocrConfidence * 100).toFixed(0)}%</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">
+                    <td className="px-8 py-6 whitespace-nowrap capitalize">
                       <div className="flex items-center gap-2">
                         {statusIcons[r.status as keyof typeof statusIcons] || statusIcons.PENDING}
-                        <span>{r.status.toLowerCase()}</span>
+                        <span className="font-bold text-xs uppercase tracking-widest">{r.status.toLowerCase()}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <td className="px-8 py-6 whitespace-nowrap text-right">
                       <button 
-                        className="p-1 px-2 border rounded hover:bg-base-100 transition-colors text-xs"
+                        className="btn btn-ghost btn-xs h-8 px-4 border border-base-content/5 rounded-xl font-bold uppercase text-[9px] tracking-widest hover:bg-primary hover:text-primary-content hover:border-primary transition-all active:scale-95"
                         onClick={() => window.open(`https://drive.google.com/file/d/${r.driveFileId}/view`, '_blank')}
                       >
-                        View
+                        Source
                       </button>
                     </td>
                   </tr>

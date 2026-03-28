@@ -16,6 +16,9 @@ public class ParsedBankTransactionDto {
     private String type; // CREDIT or DEBIT
     private BigDecimal amount;
     private String category; // Suggested category by Gemini
+    private Double confidenceScore;
+    private String aiReasoning;
+    private String originalSnippet;
 
     // Getters and Setters
     public String getTxDate() { return txDate; }
@@ -30,4 +33,13 @@ public class ParsedBankTransactionDto {
     public void setAmount(BigDecimal amount) { this.amount = amount; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+
+    public Double getConfidenceScore() { return confidenceScore; }
+    public void setConfidenceScore(Double confidenceScore) { this.confidenceScore = confidenceScore; }
+
+    public String getAiReasoning() { return aiReasoning; }
+    public void setAiReasoning(String aiReasoning) { this.aiReasoning = aiReasoning; }
+
+    public String getOriginalSnippet() { return originalSnippet; }
+    public void setOriginalSnippet(String originalSnippet) { this.originalSnippet = originalSnippet; }
 }

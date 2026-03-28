@@ -34,6 +34,7 @@ public class GoogleSheetsSyncService {
         this.surveyRepository = surveyRepository;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void syncResponses(Long surveyId) throws Exception {
         Survey survey = surveyRepository.findById(surveyId)
                 .orElseThrow(() -> new IllegalArgumentException("Survey not found"));
@@ -43,51 +44,73 @@ public class GoogleSheetsSyncService {
             return;
         }
 
-        AppConfig config = appConfigService.getConfig();
-        Sheets sheetsService = googleSheetsClient.getSheetsService(config.getServiceAccountJson());
+        // Fetch existing hashes to avoid duplicates (preserving audit history)
+        java.util.Set<String> existingHashes = responseRepository.findAllHashesBySurveyId(surveyId);
+        log.info("Loaded {} existing response hashes for surveyId: {}", existingHashes.size(), surveyId);
 
-        // Assuming responses are in the first sheet, starting from A2 (skipping header)
-        String range = "Form Responses 1!A2:Z"; 
+        AppConfig config = appConfigService.getConfig();
+        String serviceAccountJson = config.getServiceAccountJson();
+        if (serviceAccountJson == null || serviceAccountJson.trim().isEmpty()) {
+            throw new com.finsight.backend.exception.BusinessException("Google Service Account JSON is not configured.");
+        }
+        Sheets sheetsService = googleSheetsClient.getSheetsService(serviceAccountJson);
+        
+        // 0. Get the first sheet name dynamically
+        com.google.api.services.sheets.v4.model.Spreadsheet spreadsheet = sheetsService.spreadsheets()
+                .get(survey.getSheetId()).execute();
+        String sheetName = spreadsheet.getSheets().get(0).getProperties().getTitle();
+
+        // 1. Get and normalize headers
+        ValueRange headerResponse = sheetsService.spreadsheets().values()
+                .get(survey.getSheetId(), "'" + sheetName + "'!A1:Z1")
+                .execute();
+        List<Object> rawHeaders = headerResponse.getValues().get(0);
+        java.util.List<String> normalizedHeaders = rawHeaders.stream()
+                .map(h -> com.finsight.backend.util.NormalizationUtils.normalizeHeader(h.toString()))
+                .collect(java.util.stream.Collectors.toList());
+
+        // 2. Fetch responses skipping header
+        String range = "'" + sheetName + "'!A2:Z"; 
         ValueRange response = sheetsService.spreadsheets().values()
                 .get(survey.getSheetId(), range)
                 .execute();
 
         List<List<Object>> values = response.getValues();
-        if (values == null || values.isEmpty()) {
-            log.info("No new responses found for survey: {}", surveyId);
-            return;
-        }
+        if (values == null || values.isEmpty()) return;
 
-        // Get headers to map questions
-        ValueRange headerResponse = sheetsService.spreadsheets().values()
-                .get(survey.getSheetId(), "Form Responses 1!A1:Z1")
-                .execute();
-        List<Object> headers = headerResponse.getValues().get(0);
-
+        int newSaved = 0;
         for (List<Object> row : values) {
             if (row.isEmpty()) continue;
 
-            String timestampStr = row.get(0).toString();
-            LocalDateTime timestamp = parseTimestamp(timestampStr);
+            String responseId = row.get(0).toString(); // Timestamp from column A acts as responseId
+            LocalDateTime timestamp = parseTimestamp(responseId);
 
-            // Each row col (starting from 1) is an answer to the question in headers[col]
             for (int i = 1; i < row.size(); i++) {
-                String question = headers.get(i).toString();
-                String answer = row.get(i).toString();
+                String rawAnswer = row.get(i).toString();
+                String normalizedQuestion = normalizedHeaders.get(i);
+                String normalizedAnswer = com.finsight.backend.util.NormalizationUtils.normalizeAnswer(rawAnswer);
 
-                // Idempotency check
-                if (!responseRepository.existsBySurveyIdAndTimestampAndQuestion(surveyId, timestamp, question)) {
+                // Row-Hash Idempotency: SHA256(surveyId + responseId + normalizedQuestion + normalizedAnswer)
+                String hashInput = surveyId + "|" + responseId + "|" + normalizedQuestion + "|" + normalizedAnswer;
+                String hash = com.finsight.backend.util.NormalizationUtils.generateHash(hashInput);
+
+                if (!existingHashes.contains(hash)) {
                     SurveyResponse sr = new SurveyResponse();
                     sr.setSurveyId(surveyId);
                     sr.setTenantId(survey.getTenantId());
                     sr.setTimestamp(timestamp);
-                    sr.setQuestion(question);
-                    sr.setAnswer(answer);
+                    sr.setQuestion(rawHeaders.get(i).toString()); // Keep raw for display
+                    sr.setAnswer(rawAnswer);                      // Keep raw for display
+                    sr.setHash(hash);
+                    sr.setIsActive(true);
                     responseRepository.save(sr);
+                    existingHashes.add(hash); // Add to local set to prevent duplicate rows in same sync
+                    newSaved++;
                 }
             }
         }
-        log.info("Synced {} rows for survey: {}", values.size(), surveyId);
+        log.info("Synced survey: {}. Found {} total rows, saved {} new response items.", 
+                surveyId, values.size(), newSaved);
     }
 
     private LocalDateTime parseTimestamp(String timestampStr) {

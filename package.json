@@ -9,5 +9,8 @@
         "dev:backend": "cd backend && npx ts-node server.js",
         "update-installer": "./update_installer.sh"
     },
-    "dependencies": {}
+    "devDependencies": {
+        "daisyui": "^5.5.19",
+        "tailwindcss": "^4.2.2"
+    }
 }

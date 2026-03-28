@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "./constants";
 
-const API_KEY = "finsight_local_dev_secret";
+const API_KEY = "dev_secret_only_for_local";
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { 
   Building2, 
   PieChart as PieChartIcon, 
@@ -46,6 +46,9 @@ export default function VendorsPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [drilldownData, setDrilldownData] = useState<any | null>(null);
+  const [isDrillingDown, setIsDrillingDown] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [hasRunDetection, setHasRunDetection] = useState(false);
   const [currency, setCurrency] = useState("INR");
@@ -143,6 +146,40 @@ export default function VendorsPage() {
     };
   }, [autoRefresh, runAnomalyDetection, toast]);
 
+  const handlePieClick = async (clickedData: any) => {
+    // Recharts 2.x often passes the data in clickedData.payload
+    // Depending on the event source, it might be the direct object or wrapped
+    const entry = clickedData?.payload || clickedData;
+    
+    if (!entry || !entry.categoryName) {
+      console.warn("Could not extract categoryName from pie click:", clickedData);
+      return;
+    }
+    
+    const categoryName = entry.categoryName;
+    setSelectedCategory(categoryName);
+    setIsDrillingDown(true);
+    
+    try {
+      const res = await apiFetch(`/insights/categories/${encodeURIComponent(categoryName)}/drilldown`);
+      if (res.ok) {
+        setDrilldownData(await res.json());
+        // Scroll to drilldown section
+        setTimeout(() => {
+          const drilldownEl = document.getElementById('category-drilldown');
+          if (drilldownEl) drilldownEl.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        toast("Failed to load category details.", "error");
+      }
+    } catch (error) {
+      console.error("Drilldown fetch error:", error);
+      toast("Failed to load category details.", "error");
+    } finally {
+      setIsDrillingDown(false);
+    }
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -157,15 +194,15 @@ export default function VendorsPage() {
 
   return (
     <div className="container mx-auto py-10 px-4 max-w-7xl animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight inline-flex items-center gap-3">
-            <Building2 className="h-8 w-8 text-primary" />
-            Vendor Insights & Audit
-          </h1>
-          <p className="text-base-content/60 mt-2">
-            Analyze expenditure flows and audit transactions using AI Anomaly Detection.
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+        <div className="flex items-center gap-5">
+          <div className="p-3 bg-primary/10 rounded-2xl glow-primary">
+            <Building2 className="h-10 w-10 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight leading-tight">Vendor Intel & Audit</h1>
+            <p className="text-base-content/60 font-medium text-lg uppercase tracking-wider text-[11px] mt-1">Behavioral Analysis & Forensic Watchdog</p>
+          </div>
         </div>
       </div>
 
@@ -175,20 +212,20 @@ export default function VendorsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className="p-0 flex flex-col rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 shadow-lg overflow-hidden">
-               <div className="p-6 pb-0">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" /> Top 10 Vendors
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 [animation-delay:100ms]">
+            <div className="glass-panel p-0 flex flex-col rounded-[2.5rem] shadow-xl overflow-hidden transition-all hover:glow-primary">
+               <div className="p-8 pb-4">
+                  <h3 className="text-xl font-black flex items-center gap-3">
+                    <Building2 className="h-6 w-6 text-primary" /> Prime Vector Vendors
                   </h3>
                </div>
-               <div className="p-6 h-[240px] w-full">
+               <div className="p-8 h-[260px] w-full">
                  <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={vendors} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                   <BarChart data={vendors} layout="vertical">
                      <XAxis type="number" hide />
-                     <YAxis dataKey="vendorName" type="category" width={100} tick={{fill: '#888', fontSize: 11}} />
+                     <YAxis dataKey="vendorName" type="category" width={110} tick={{fill: 'currentColor', fontSize: 10, opacity: 0.6, fontWeight: 700}} axisLine={false} tickLine={false} />
                      <Tooltip content={<CustomTooltip />} />
-                     <Bar dataKey="totalSpent" fill="var(--primary)" radius={[0, 4, 4, 0]} barSize={15}>
+                     <Bar dataKey="totalSpent" fill="var(--color-primary)" radius={[0, 8, 8, 0]} barSize={16}>
                        {vendors.map((entry, index) => (
                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                        ))}
@@ -196,21 +233,21 @@ export default function VendorsPage() {
                    </BarChart>
                  </ResponsiveContainer>
                </div>
-               <div className="border-t border-primary/5">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-base-300/30 text-base-content/60 uppercase font-bold">
-                      <tr>
-                        <th className="px-6 py-3">Vendor</th>
-                        <th className="px-6 py-3 text-right">Transactions</th>
-                        <th className="px-6 py-3 text-right">Total Spent</th>
+               <div className="border-t border-base-content/5 mt-auto bg-base-300/20">
+                  <table className="table w-full">
+                    <thead>
+                      <tr className="bg-base-300/40 text-base-content/50">
+                        <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em]">Entity Name</th>
+                        <th className="px-8 py-4 text-right text-[10px] font-black uppercase tracking-[0.2em]">Txns</th>
+                        <th className="px-8 py-4 text-right text-[10px] font-black uppercase tracking-[0.2em]">Inflow Magnitude</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-primary/5">
+                    <tbody className="divide-y divide-base-content/5 font-medium">
                       {vendors.slice(0, 5).map((v, i) => (
-                        <tr key={i} className="hover:bg-primary/5">
-                          <td className="px-6 py-2.5 font-medium">{v.vendorName}</td>
-                          <td className="px-6 py-2.5 text-right font-mono">{v.transactionCount}</td>
-                          <td className="px-6 py-2.5 text-right font-mono text-primary">{formatCurrency(v.totalSpent, currency)}</td>
+                        <tr key={i} className="hover:bg-primary/5 transition-all group">
+                          <td className="px-8 py-3.5 font-bold text-sm group-hover:text-primary">{v.vendorName}</td>
+                          <td className="px-8 py-3.5 text-right font-mono font-bold text-xs opacity-60">{v.transactionCount}</td>
+                          <td className="px-8 py-3.5 text-right font-mono font-black text-sm text-primary">{formatCurrency(v.totalSpent, currency)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -218,125 +255,211 @@ export default function VendorsPage() {
                </div>
             </div>
 
-            <div className="p-6 rounded-xl border bg-base-200/50 backdrop-blur-sm border-primary/10 shadow-lg">
-               <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                 <PieChartIcon className="h-5 w-5 text-primary" /> Expenditure by Category
+            <div className="glass-panel p-8 rounded-[2.5rem] shadow-xl transition-all hover:glow-secondary">
+               <h3 className="text-xl font-black mb-8 flex items-center gap-3">
+                 <PieChartIcon className="h-6 w-6 text-primary" /> Resource Distribution
                </h3>
-               <div className="h-[300px] w-full">
+               <div className="h-[340px] w-full">
                  <ResponsiveContainer width="100%" height="100%">
                    <PieChart>
                      <Pie
                        data={categories}
-                       cx="50%"
-                       cy="50%"
-                       innerRadius={80}
-                       outerRadius={120}
-                       paddingAngle={5}
+                       innerRadius={90}
+                       outerRadius={130}
+                       paddingAngle={8}
                        dataKey="totalSpent"
                        nameKey="categoryName"
+                      onClick={handlePieClick}
+                      className="cursor-pointer"
                      >
                        {categories.map((entry, index) => (
-                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(255,255,255,0.05)" strokeWidth={2} />
                        ))}
                      </Pie>
                      <Tooltip content={<CustomTooltip />} />
+                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                    </PieChart>
                  </ResponsiveContainer>
                </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-primary/10 bg-base-200 overflow-hidden shadow-lg relative">
-             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
-             
-             <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between border-b border-primary/10 gap-4">
+          {/* Category Drilldown Section */}
+          {(selectedCategory || isDrillingDown) && (
+            <div id="category-drilldown" className="glass-panel p-8 rounded-[2.5rem] shadow-2xl mb-10 border-primary/20 animate-in slide-in-from-bottom-5 duration-500">
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-primary/10 rounded-2xl">
+                    <PieChartIcon className="h-8 w-8 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black tracking-tight">{selectedCategory}</h2>
+                    <p className="text-sm font-bold text-base-content/40 uppercase tracking-widest">Resource Allocation Deep-Dive</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setDrilldownData(null);
+                  }}
+                  className="btn btn-ghost btn-circle"
+                >
+                  <AlertCircle className="h-6 w-6 rotate-45" />
+                </button>
+              </div>
+
+              {isDrillingDown ? (
+                <div className="flex flex-col items-center justify-center p-20 gap-4">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="font-bold text-primary animate-pulse uppercase tracking-widest text-xs">Analyzing Category Composition...</p>
+                </div>
+              ) : drilldownData ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  {/* Top Vendors in Category */}
+                  <div className="flex flex-col">
+                    <h4 className="text-sm font-black uppercase tracking-widest text-base-content/50 mb-6 flex items-center gap-2">
+                      <Building2 className="h-4 w-4" /> Leading Entities
+                    </h4>
+                    <div className="bg-base-200/50 rounded-3xl overflow-hidden border border-base-content/5">
+                      <table className="table w-full">
+                        <thead className="bg-base-300/50">
+                          <tr>
+                            <th className="px-6 py-4 text-[10px] uppercase font-black tracking-widest opacity-50">Vendor</th>
+                            <th className="px-6 py-4 text-right text-[10px] uppercase font-black tracking-widest opacity-50">Count</th>
+                            <th className="px-6 py-4 text-right text-[10px] uppercase font-black tracking-widest opacity-50">Magnitude</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-base-content/5">
+                          {drilldownData.topVendors.map((v: any, i: number) => (
+                            <tr key={i} className="hover:bg-primary/5 transition-all">
+                              <td className="px-6 py-4 font-bold text-sm">{v.vendorName}</td>
+                              <td className="px-6 py-4 text-right font-mono text-xs opacity-60">{v.transactionCount}</td>
+                              <td className="px-6 py-4 text-right font-mono font-black text-sm text-primary">{formatCurrency(v.totalSpent, currency)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Recent Transactions in Category */}
+                  <div className="flex flex-col">
+                    <h4 className="text-sm font-black uppercase tracking-widest text-base-content/50 mb-6 flex items-center gap-2">
+                      <Clock className="h-4 w-4" /> Operational History
+                    </h4>
+                    <div className="space-y-3">
+                      {drilldownData.recentTransactions.map((tx: any, i: number) => (
+                        <div key={i} className="bg-base-100 p-5 rounded-2xl border border-base-content/5 hover:border-primary/20 transition-all flex items-center justify-between group shadow-sm">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-black opacity-30 uppercase tracking-tighter">{tx.txDate}</span>
+                            <span className="font-bold text-sm line-clamp-1 group-hover:text-primary transition-colors">{tx.description}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-black text-base text-primary/80">{formatCurrency(tx.amount, currency)}</div>
+                            <div className="text-[10px] font-black opacity-30 uppercase tracking-widest">{tx.vendor || 'UNSPECIFIED'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center p-10 opacity-30 italic">No historical data available for this category.</div>
+              )}
+            </div>
+          )}
+
+          <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-2xl relative border-warning/10 [animation-delay:200ms] animate-fade-in hover:glow-accent">
+             <div className="p-8 flex flex-col md:flex-row items-start md:items-center justify-between border-b border-warning/10 gap-6 bg-warning/5 backdrop-blur-xl">
                 <div>
-                  <h2 className="text-xl font-bold flex items-center gap-2">
-                     <AlertTriangle className="h-5 w-5 text-warning" />
+                  <h2 className="text-2xl font-black flex items-center gap-3 text-warning uppercase tracking-tighter">
+                     <AlertTriangle className="h-6 w-6 animate-pulse" />
                      Forensic Audit Watchdog
                   </h2>
-                  <p className="text-sm text-base-content/60 mt-1">
-                    AI-powered anomaly detection for suspicious patterns, duplicates, and inflated costs.
+                  <p className="text-sm font-bold text-base-content/40 mt-1 uppercase tracking-widest">
+                    Gemini 1.5 Pro AI Analytic Sequence
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 bg-base-300/50 px-3 py-1.5 rounded-lg border border-primary/5">
-                    <span className="text-[10px] uppercase font-bold text-base-content/60 tracking-wider">Auto-Audit</span>
-                    <button 
-                      onClick={() => setAutoRefresh(!autoRefresh)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-base-300 ${autoRefresh ? 'bg-primary' : 'bg-base-300'}`}
-                    >
-                      <span
-                        className={`pointer-events-none block h-4 w-4 rounded-full bg-base-100 shadow-lg ring-0 transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0'}`}
-                      />
-                    </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 bg-base-300/50 px-5 py-3 rounded-2xl border border-base-content/10 shadow-inner">
+                    <span className="text-[10px] uppercase font-black text-base-content/40 tracking-[0.2em]">Live Monitoring</span>
+                    <input 
+                      type="checkbox" 
+                      className="toggle toggle-primary toggle-sm" 
+                      checked={autoRefresh}
+                      onChange={() => setAutoRefresh(!autoRefresh)}
+                    />
                   </div>
                   <button
                     onClick={() => runAnomalyDetection()}
                     disabled={isDetecting}
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-content hover:bg-primary/90 h-10 px-4 py-2 shadow-lg shadow-primary/20 hover:scale-105"
+                    className="btn btn-warning h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-warning/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
                   >
-                    {isDetecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    Invoke Analyst
+                    {isDetecting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    Invoke Security Configuration
                   </button>
                 </div>
              </div>
 
              <div className="p-0">
                {!hasRunDetection && !isDetecting ? (
-                  <div className="px-6 py-16 text-center text-base-content/60">
-                     <AlertCircle className="h-8 w-8 mx-auto mb-3 opacity-20" />
-                     <p>No prior audit results found. Run a security audit to begin forensic analysis.</p>
+                  <div className="px-8 py-24 text-center text-base-content/40 italic font-black text-lg uppercase tracking-widest opacity-40">
+                     <AlertCircle className="h-12 w-12 mx-auto mb-4" />
+                     <p>Operational Buffer Empty. Initiate Security Configuration.</p>
                   </div>
                ) : isDetecting && anomalies.length === 0 ? (
-                  <div className="px-6 py-16 text-center text-primary flex flex-col items-center justify-center min-h-[200px]">
-                     <Loader2 className="h-10 w-10 animate-spin mb-4" />
-                     <p className="font-medium animate-pulse">Consulting Gemini 1.5 Pro...</p>
+                  <div className="px-8 py-24 text-center text-primary flex flex-col items-center justify-center min-h-[300px] bg-primary/5">
+                     <Loader2 className="h-12 w-12 animate-spin mb-6" />
+                     <p className="font-black animate-pulse uppercase tracking-[0.3em] text-sm">Synchronizing with Gemini 1.5 Forensic Neural Engine...</p>
                   </div>
                ) : anomalies.length === 0 ? (
-                  <div className="px-6 py-16 text-center">
-                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 mb-4">
-                        <Sparkles className="h-8 w-8 text-success" />
+                  <div className="px-8 py-24 text-center bg-success/5">
+                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-success/10 mb-6 glow-secondary">
+                        <Sparkles className="h-10 w-10 text-success" />
                      </div>
-                     <p className="text-xl font-semibold text-success mb-1">Clean Audit!</p>
-                     <p className="text-base-content/60">No suspicious transactions found in the forensic buffer.</p>
+                     <p className="text-3xl font-black text-success mb-2 uppercase tracking-tight">Zero Variance Detected</p>
+                     <p className="text-base-content/40 font-bold uppercase tracking-widest text-[11px]">System Integrity: Optimal</p>
                   </div>
                ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-base-content/60 uppercase bg-base-300/50">
-                        <tr>
-                          <th scope="col" className="px-6 py-4 font-medium">Flagged Entity</th>
-                          <th scope="col" className="px-6 py-4 font-medium">Amount</th>
-                          <th scope="col" className="px-6 py-4 font-medium">AI Forensic Reasoning</th>
-                          <th scope="col" className="px-6 py-4 font-medium text-right">Detection Date</th>
+                    <table className="table w-full">
+                      <thead>
+                        <tr className="bg-error/10 text-error">
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Flagged Operational Record</th>
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">Variance Magnitude</th>
+                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em]">AI Forensic Deduction</th>
+                          <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em]">Detection Vector</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-primary/5">
+                      <tbody className="divide-y divide-base-content/5 font-medium">
                         {anomalies.map((anomaly, idx) => (
-                           <tr key={idx} className="hover:bg-destructive/5 transition-colors group">
-                             <td className="px-6 py-4">
-                               <div className="font-medium">{anomaly.description}</div>
-                               <div className="text-xs text-base-content/60 mt-0.5">{anomaly.date || anomaly.txDate}</div>
-                             </td>
-                             <td className="px-6 py-4 font-mono font-bold text-destructive">
-                                {formatCurrency(anomaly.amount, currency)}
-                             </td>
-                             <td className="px-6 py-4">
-                               <div className="flex items-start gap-2">
-                                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                                  <span className="text-base-content/60 text-xs leading-relaxed">{anomaly.reason}</span>
+                           <tr key={idx} className="hover:bg-error/5 transition-all group">
+                             <td className="px-8 py-6">
+                               <div className="font-black text-base text-base-content/80 group-hover:text-error transition-colors uppercase tracking-tight">{anomaly.description}</div>
+                               <div className="flex items-center gap-2 mt-2">
+                                  <Clock className="h-3 w-3 text-base-content/20" />
+                                  <span className="text-[10px] font-black font-mono text-base-content/30 uppercase tracking-widest">{anomaly.date || anomaly.txDate}</span>
                                </div>
                              </td>
-                             <td className="px-6 py-4 text-right text-[10px] text-base-content/60 font-mono">
-                                {anomaly.detectedAt ? new Date(anomaly.detectedAt).toLocaleString() : 'Live'}
+                             <td className="px-8 py-6 font-mono font-black text-error text-xl scale-110 origin-left">
+                                {formatCurrency(anomaly.amount, currency)}
+                             </td>
+                             <td className="px-8 py-6">
+                               <div className="flex items-start gap-3 bg-error/5 p-4 rounded-2xl border border-error/5 shadow-inner transition-colors group-hover:bg-error/10">
+                                  <Sparkles className="h-5 w-5 text-error shrink-0 mt-0.5 animate-pulse" />
+                                  <span className="text-base-content/70 text-xs leading-relaxed font-bold italic">{anomaly.reason}</span>
+                                </div>
+                             </td>
+                             <td className="px-8 py-6 text-right">
+                                <span className="text-[10px] font-black font-mono text-base-content/30 uppercase tracking-[0.1em] block">Sensor Tag</span>
+                                <span className="text-[11px] font-bold text-base-content/60">{anomaly.detectedAt ? new Date(anomaly.detectedAt).toLocaleString() : 'LIVE RECORD'}</span>
                              </td>
                            </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-               )}
+                )}
              </div>
           </div>
         </>

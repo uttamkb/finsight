@@ -1,23 +1,84 @@
+/* 
+  Vibrant Financial Cyber-Precision Theme 
+  Main Colors: 
+  - Primary: Deep Sapphire Blue (Trust, Action)
+  - Secondary: Emerald Mint (Finance, Success)
+  - Accent: High-Tech Amber (Alerts, Warnings)
+  - Base: Deep Space Gray (Premium depth)
+*/
+
 @theme {
+  /* Core Palette */
+  --color-primary: #3b82f6;
+  --color-primary-content: #ffffff;
+  
+  --color-secondary: #10b981;
+  --color-secondary-content: #ffffff;
+  
+  --color-accent: #f59e0b;
+  --color-accent-content: #000000;
+  
+  --color-error: #ef4444;
+  --color-error-content: #ffffff;
+  
+  --color-warning: #facc15;
+  --color-warning-content: #000000;
+  
+  --color-success: #22c55e;
+  --color-success-content: #ffffff;
+
+  --color-info: #0ea5e9;
+  --color-info-content: #ffffff;
+
+  /* Utility mapping for DaisyUI integration */
   --color-primary-foreground: var(--color-primary-content);
   --color-secondary-foreground: var(--color-secondary-content);
   --color-accent-foreground: var(--color-accent-content);
   --color-destructive-foreground: var(--color-error-content);
+  
+  --color-muted: color-mix(in srgb, var(--color-base-content), transparent 85%);
   --color-muted-foreground: color-mix(in srgb, var(--color-base-content), transparent 40%);
-  --color-popover-foreground: var(--color-base-content);
-  --color-card-foreground: var(--color-base-content);
+  
   --color-border: color-mix(in srgb, var(--color-base-content), transparent 80%);
+  --color-input: color-mix(in srgb, var(--color-base-content), transparent 80%);
+  --color-ring: var(--color-primary);
+
+  --color-popover: var(--color-base-100);
+  --color-popover-foreground: var(--color-base-content);
+
+  --color-card: var(--color-base-100);
+  --color-card-foreground: var(--color-base-content);
 }
 
 @layer base {
-  /* Ensure Light mode contrast for vibrant buttons */
-  [data-theme="light"] {
+  /* Global Overrides for high contrast on DaisyUI themes */
+  :root {
+    --p: #2563eb;
+    --s: #059669;
+    --a: #d97706;
+    --nc: #ffffff;
+    --bc: #111827;
+    
     --primary-content: #ffffff;
     --secondary-content: #ffffff;
     --accent-content: #ffffff;
-    --color-primary-content: #ffffff;
-    --color-secondary-content: #ffffff;
-    --color-accent-content: #ffffff;
+  }
+
+  [data-theme="dark"] {
+    --p: #3b82f6;
+    --s: #10b981;
+    --a: #f59e0b;
+    --nc: #ffffff;
+    --bc: #f9fafb;
+    
+    --base-100: #020617;
+    --base-200: #0f172a;
+    --base-300: #1e293b;
+    --base-content: #f8fafc;
+    
+    --primary-content: #ffffff;
+    --secondary-content: #ffffff;
+    --accent-content: #ffffff;
   }
 }
 
@@ -26,33 +87,58 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-base-100/10 backdrop-blur-md border border-base-content/10 shadow-xl;
+    @apply bg-base-100/40 backdrop-blur-2xl border border-white/5 shadow-2xl;
   }
   
   .glow-primary {
-    @apply shadow-[0_0_15px_rgba(var(--color-primary),0.5)];
+    @apply shadow-[0_0_30px_-5px_#3b82f655];
   }
 
   .glow-secondary {
-    @apply shadow-[0_0_15px_rgba(var(--color-secondary),0.5)];
+    @apply shadow-[0_0_30px_-5px_#10b98155];
   }
 
   .glow-accent {
-    @apply shadow-[0_0_15px_rgba(var(--color-accent),0.5)];
+    @apply shadow-[0_0_30px_-5px_#f59e0b55];
+  }
+
+  .glow-error {
+    @apply shadow-[0_0_30px_-5px_#ef444455];
+  }
+
+  .border-neon-primary {
+    @apply border-primary/20 shadow-[inset_0_0_10px_rgba(59,130,246,0.1)];
   }
 
   .animate-fade-in {
-    animation: fade-in 0.5s ease-out forwards;
+    animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Custom scrollbar for cyber-look */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-primary/20 rounded-full hover:bg-primary/50 transition-colors;
   }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @layer base {
   body {
-    @apply antialiased min-h-screen bg-base-100 text-base-content selection:bg-primary selection:text-primary-content;
+    @apply antialiased min-h-screen bg-base-100 text-base-content selection:bg-primary selection:text-primary-content tracking-tight;
+    background: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 100%);
+  }
+
+  [data-theme="light"] body {
+    background: radial-gradient(circle at 50% 0%, #f8fafc 0%, #f1f5f9 100%);
   }
 }

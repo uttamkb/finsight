@@ -32,11 +32,17 @@ public class Survey {
     @Column(name = "status")
     private String status; // ACTIVE, CLOSED
 
+    @Column(name = "label")
+    private String label;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "executive_summary", length = 2000)
     private String executiveSummary;
+
+    @Column(name = "action_plan", length = 4000)
+    private String actionPlan;
 
     @PrePersist
     protected void onCreate() {
@@ -64,4 +70,8 @@ public class Survey {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public String getExecutiveSummary() { return executiveSummary; }
     public void setExecutiveSummary(String executiveSummary) { this.executiveSummary = executiveSummary; }
+    public String getActionPlan() { return actionPlan; }
+    public void setActionPlan(String actionPlan) { this.actionPlan = actionPlan; }
+    public String getLabel() { return label; }
+    public void setLabel(String label) { this.label = label; }
 }

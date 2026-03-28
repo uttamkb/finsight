@@ -27,23 +27,23 @@ public class GeminiClient {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiClient.class);
 
-    private static final String GEMINI_API_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
-
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public GeminiClient(ObjectMapper objectMapper) {
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(60))
-                .build();
+    @org.springframework.beans.factory.annotation.Value("${ai.gemini.model:models/gemini-2.5-flash}")
+    private String geminiModel;
+
+    private static final String GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/";
+
+    public GeminiClient(HttpClient httpClient, ObjectMapper objectMapper) {
+        this.httpClient = httpClient;
         this.objectMapper = objectMapper;
     }
 
     /**
      * Sends a plain text chunk to Gemini with retries.
      */
-    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000, multiplier = 2))
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000, multiplier = 2))
     public List<ParsedBankTransactionDto> callGeminiWithText(String textChunk, String prompt, String apiKey) throws Exception {
         log.info("Sending text chunk to Gemini (Size: {}). Retry attempted if failed.", textChunk.length());
         
@@ -65,7 +65,7 @@ public class GeminiClient {
     /**
      * Sends a rendered page PNG image to Gemini with retries.
      */
-    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 10000, multiplier = 2))
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 10000, multiplier = 2))
     public List<ParsedBankTransactionDto> callGeminiWithImage(byte[] imageBytes, String prompt, String apiKey) throws Exception {
         log.info("Sending image page to Gemini (Size: {} KB). Retry attempted if failed.", imageBytes.length / 1024);
         
@@ -92,8 +92,12 @@ public class GeminiClient {
     }
 
     private List<ParsedBankTransactionDto> sendToGeminiAndParse(String requestBody, String apiKey) throws Exception {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Gemini API key is missing. Extraction cannot proceed.");
+        }
+        
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GEMINI_API_URL))
+                .uri(URI.create(GEMINI_API_BASE_URL + geminiModel + ":generateContent"))
                 .header("Content-Type", "application/json")
                 .header("x-goog-api-key", apiKey)
                 .timeout(Duration.ofMinutes(5)) // Increased from 3m to 5m
@@ -129,7 +133,46 @@ public class GeminiClient {
         return result.getTransactions() != null ? result.getTransactions() : new ArrayList<>();
     }
 
+    /**
+     * Generic Gemini call returning raw JSON text.
+     */
+    public String callGeminiGeneric(String prompt, String context, String apiKey) throws Exception {
+        String requestBody = String.format("""
+            {
+              "contents": [{
+                "parts": [
+                  {"text": "%s"},
+                  {"text": "CONTEXT:\\n%s"}
+                ]
+              }],
+              "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"}
+            }
+            """, escapeJson(prompt), escapeJson(context));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(GEMINI_API_BASE_URL + geminiModel + ":generateContent"))
+                .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey)
+                .timeout(Duration.ofMinutes(1))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Gemini Generic Call failed. Status: " + response.statusCode());
+        }
+
+        var rootNode = objectMapper.readTree(response.body());
+        String text = rootNode.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+        
+        return text.trim()
+                .replaceAll("(?s)^```json\\s*", "")
+                .replaceAll("(?s)```\\s*$", "")
+                .trim();
+    }
+
     private String escapeJson(String text) {
+        if (text == null) return "";
         return text
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"")

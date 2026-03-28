@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface SurveyInsightRepository extends JpaRepository<SurveyInsight, Long> {
     List<SurveyInsight> findBySurveyId(Long surveyId);
+    void deleteBySurveyId(Long surveyId);
 }

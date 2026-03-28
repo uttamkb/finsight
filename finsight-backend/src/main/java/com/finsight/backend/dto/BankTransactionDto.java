@@ -20,9 +20,16 @@ public class BankTransactionDto {
     private String vendor;
     private String type;
     private BigDecimal amount;
+    @Deprecated
     private Boolean reconciled;
+    private String reconciliationStatus;
     private String referenceNumber;
     private LocalDateTime createdAt;
+    private String status;
+    private Double confidenceScore;
+    private String aiReasoning;
+    private String originalSnippet;
+    private Boolean isDuplicate;
 
     // Nested DTOs for UI compatibility
     private CategoryDto category;
@@ -70,8 +77,14 @@ public class BankTransactionDto {
         dto.type            = txn.getType() != null ? txn.getType().name() : null;
         dto.amount          = txn.getAmount();
         dto.reconciled      = txn.getReconciled();
+        dto.reconciliationStatus = txn.getReconciliationStatus() != null ? txn.getReconciliationStatus().name() : null;
         dto.referenceNumber = txn.getReferenceNumber();
         dto.createdAt       = txn.getCreatedAt();
+        dto.status          = txn.getStatus();
+        dto.confidenceScore = txn.getConfidenceScore();
+        dto.aiReasoning      = txn.getAiReasoning();
+        dto.originalSnippet = txn.getOriginalSnippet();
+        dto.isDuplicate     = txn.getIsDuplicate();
 
         // Populate nested DTOs (only simple fields, no lazy proxies leak)
         dto.category = CategoryDto.from(txn.getCategory());
@@ -102,8 +115,13 @@ public class BankTransactionDto {
     public BigDecimal getAmount()        { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
     
+    @Deprecated
     public Boolean getReconciled()       { return reconciled; }
+    @Deprecated
     public void setReconciled(Boolean reconciled) { this.reconciled = reconciled; }
+    
+    public String getReconciliationStatus() { return reconciliationStatus; }
+    public void setReconciliationStatus(String reconciliationStatus) { this.reconciliationStatus = reconciliationStatus; }
     
     public String getReferenceNumber()   { return referenceNumber; }
     public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
@@ -116,4 +134,19 @@ public class BankTransactionDto {
     
     public ReceiptDto getReceipt()       { return receipt; }
     public void setReceipt(ReceiptDto receipt) { this.receipt = receipt; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public Double getConfidenceScore() { return confidenceScore; }
+    public void setConfidenceScore(Double confidenceScore) { this.confidenceScore = confidenceScore; }
+
+    public String getAiReasoning() { return aiReasoning; }
+    public void setAiReasoning(String aiReasoning) { this.aiReasoning = aiReasoning; }
+
+    public String getOriginalSnippet() { return originalSnippet; }
+    public void setOriginalSnippet(String originalSnippet) { this.originalSnippet = originalSnippet; }
+
+    public Boolean getIsDuplicate() { return isDuplicate; }
+    public void setIsDuplicate(Boolean isDuplicate) { this.isDuplicate = isDuplicate; }
 }

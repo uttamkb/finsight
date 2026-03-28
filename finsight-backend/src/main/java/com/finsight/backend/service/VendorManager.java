@@ -37,11 +37,14 @@ public class VendorManager {
             return;
         }
 
-        String normalizedName = vendorName.trim();
-        if ("Unknown".equalsIgnoreCase(normalizedName) || normalizedName.toLowerCase().contains("unknown vendor")) {
+        // ── Normalization to prevent duplicates (e.g., SWIGGY vs Swiggy) ──
+        String normalizedNameForLookup = vendorName.trim().toUpperCase();
+        if ("UNKNOWN".equalsIgnoreCase(normalizedNameForLookup)) {
             return;
         }
-        Optional<Vendor> optionalVendor = vendorRepository.findByTenantIdAndName(tenantId, normalizedName);
+
+        // Case-insensitive search
+        Optional<Vendor> optionalVendor = vendorRepository.findByTenantIdAndNameIgnoreCase(tenantId, normalizedNameForLookup);
 
         Vendor vendor;
         if (optionalVendor.isPresent()) {
@@ -49,14 +52,15 @@ public class VendorManager {
         } else {
             vendor = new Vendor();
             vendor.setTenantId(tenantId);
-            vendor.setName(normalizedName);
+            // Prettify the name for display (Title Case)
+            vendor.setName(toTitleCase(vendorName.trim()));
             vendor.setTotalSpent(BigDecimal.ZERO);
             vendor.setTotalPayments(0);
-            log.info("Created new vendor entry for: {}", normalizedName);
+            log.info("Created new canonical vendor entry for: {}", vendor.getName());
         }
 
         // Update statistics
-        vendor.setTotalSpent(vendor.getTotalSpent().add(amount != null ? amount : BigDecimal.ZERO));
+        vendor.setTotalSpent(vendor.getTotalSpent().add(amount));
         vendor.setTotalPayments(vendor.getTotalPayments() + 1);
         
         LocalDateTime paymentTime = date != null ? date.atStartOfDay() : LocalDateTime.now();
@@ -65,7 +69,21 @@ public class VendorManager {
         }
 
         vendorRepository.save(vendor);
-        log.debug("Updated vendor stats for {}: Total spent = {}, Payments = {}", 
-                  normalizedName, vendor.getTotalSpent(), vendor.getTotalPayments());
+    }
+
+    private String toTitleCase(String input) {
+        if (input == null || input.isEmpty()) return input;
+        StringBuilder result = new StringBuilder();
+        boolean nextTitleCase = true;
+        for (char c : input.toLowerCase().toCharArray()) {
+            if (Character.isSpaceChar(c)) {
+                nextTitleCase = true;
+            } else if (nextTitleCase) {
+                c = Character.toTitleCase(c);
+                nextTitleCase = false;
+            }
+            result.append(c);
+        }
+        return result.toString();
     }
 }

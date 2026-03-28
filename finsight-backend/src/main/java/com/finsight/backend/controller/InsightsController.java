@@ -42,10 +42,10 @@ public class InsightsController {
         return ResponseEntity.ok(vendorService.getTopVendors(limit));
     }
 
-    @GetMapping("/categories/spend")
+    @GetMapping({"/category-spending", "/categories/spend"})
     @Operation(summary = "Get Spend by Category", description = "Aggregates total spending grouped by inferred financial category.")
-    public ResponseEntity<List<CategoryInsightDto>> getSpendByCategory() {
-        return ResponseEntity.ok(vendorService.getSpendByCategory());
+    public ResponseEntity<List<CategoryInsightDto>> getCategorySpending() {
+        return ResponseEntity.ok(vendorService.getSpendingByCategory("local_tenant"));
     }
 
     @GetMapping("/anomalies/detect")
@@ -67,7 +67,14 @@ public class InsightsController {
     @GetMapping("/anomalies/history")
     @Operation(summary = "Get Anomaly History", description = "Retrieves previously detected financial forensic anomalies ordered by date.")
     public ResponseEntity<List<ForensicAnomaly>> getAnomalyHistory() {
-        return ResponseEntity.ok(forensicAnomalyRepository.findByTenantIdOrderByDetectedAtDesc("local_tenant"));
+        return ResponseEntity.ok(forensicAnomalyRepository.findByTenantIdOrderByTxDateDesc("local_tenant"));
+    }
+
+    @GetMapping("/categories/{categoryName}/drilldown")
+    @Operation(summary = "Get Category Drilldown", description = "Provides detailed spending within a category, including top vendors and recent transactions.")
+    public ResponseEntity<Map<String, Object>> getCategoryDrilldown(
+            @Parameter(description = "Name of the category to drill down into") @PathVariable String categoryName) {
+        return ResponseEntity.ok(vendorService.getCategoryDrilldown(categoryName, "local_tenant"));
     }
 
     @GetMapping("/ocr-stats")

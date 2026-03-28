@@ -11,11 +11,10 @@ import org.mockito.MockitoAnnotations;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class VendorManagerTest {
@@ -32,67 +31,64 @@ class VendorManagerTest {
     }
 
     @Test
-    void testUpdateVendorStats_NewVendor() {
+    void updateVendorStats_NewVendor_NormalizesAndSaves() {
         // Arrange
-        String tenantId = "test-tenant";
-        String vendorName = "New Vendor";
-        BigDecimal amount = new BigDecimal("100.50");
-        LocalDate date = LocalDate.now();
+        String tenantId = "tenant-1";
+        String vendorName = " swiggy   ";
+        BigDecimal amount = new BigDecimal("150.75");
+        LocalDate date = LocalDate.of(2024, 3, 15);
 
-        when(vendorRepository.findByTenantIdAndName(tenantId, vendorName)).thenReturn(Optional.empty());
+        when(vendorRepository.findByTenantIdAndNameIgnoreCase(eq(tenantId), eq("SWIGGY")))
+                .thenReturn(Optional.empty());
 
         // Act
         vendorManager.updateVendorStats(tenantId, vendorName, amount, date);
 
         // Assert
-        ArgumentCaptor<Vendor> vendorCaptor = ArgumentCaptor.forClass(Vendor.class);
-        verify(vendorRepository).save(vendorCaptor.capture());
+        ArgumentCaptor<Vendor> captor = ArgumentCaptor.forClass(Vendor.class);
+        verify(vendorRepository).save(captor.capture());
         
-        Vendor savedVendor = vendorCaptor.getValue();
-        assertEquals(vendorName, savedVendor.getName());
-        assertEquals(amount, savedVendor.getTotalSpent());
-        assertEquals(1, savedVendor.getTotalPayments());
-        assertEquals(date.atStartOfDay(), savedVendor.getLastPaymentDate());
+        Vendor saved = captor.getValue();
+        assertEquals("Swiggy", saved.getName()); // Title Case
+        assertEquals(BigDecimal.valueOf(150.75), saved.getTotalSpent());
+        assertEquals(1, saved.getTotalPayments());
+        assertEquals(date.atStartOfDay(), saved.getLastPaymentDate());
     }
 
     @Test
-    void testUpdateVendorStats_ExistingVendor() {
+    void updateVendorStats_ExistingVendor_UpdatesStats() {
         // Arrange
-        String tenantId = "test-tenant";
-        String vendorName = "Existing Vendor";
-        BigDecimal initialSpent = new BigDecimal("50.00");
-        int initialPayments = 2;
-        LocalDate oldDate = LocalDate.now().minusDays(10);
+        String tenantId = "tenant-1";
+        String vendorName = "Swiggy";
+        BigDecimal amount = new BigDecimal("100.00");
         
-        Vendor existingVendor = new Vendor();
-        existingVendor.setTenantId(tenantId);
-        existingVendor.setName(vendorName);
-        existingVendor.setTotalSpent(initialSpent);
-        existingVendor.setTotalPayments(initialPayments);
-        existingVendor.setLastPaymentDate(oldDate.atStartOfDay());
+        Vendor existing = new Vendor();
+        existing.setName("Swiggy");
+        existing.setTotalSpent(new BigDecimal("500.00"));
+        existing.setTotalPayments(5);
+        existing.setLastPaymentDate(LocalDate.of(2024, 1, 1).atStartOfDay());
 
-        when(vendorRepository.findByTenantIdAndName(tenantId, vendorName)).thenReturn(Optional.of(existingVendor));
-
-        BigDecimal newAmount = new BigDecimal("150.00");
-        LocalDate newDate = LocalDate.now();
+        when(vendorRepository.findByTenantIdAndNameIgnoreCase(eq(tenantId), anyString()))
+                .thenReturn(Optional.of(existing));
 
         // Act
-        vendorManager.updateVendorStats(tenantId, vendorName, newAmount, newDate);
+        vendorManager.updateVendorStats(tenantId, vendorName, amount, LocalDate.of(2024, 3, 15));
 
         // Assert
-        verify(vendorRepository).save(existingVendor);
-        assertEquals(initialSpent.add(newAmount), existingVendor.getTotalSpent());
-        assertEquals(initialPayments + 1, existingVendor.getTotalPayments());
-        assertEquals(newDate.atStartOfDay(), existingVendor.getLastPaymentDate());
+        assertEquals(new BigDecimal("600.00"), existing.getTotalSpent());
+        assertEquals(6, existing.getTotalPayments());
+        assertEquals(LocalDate.of(2024, 3, 15).atStartOfDay(), existing.getLastPaymentDate());
+        verify(vendorRepository).save(existing);
     }
 
     @Test
-    void testUpdateVendorStats_NullInputs() {
-        // Should not throw exception, just skip
-        vendorManager.updateVendorStats(null, "Vendor", new BigDecimal("10"), LocalDate.now());
-        vendorManager.updateVendorStats("Tenant", null, new BigDecimal("10"), LocalDate.now());
-        vendorManager.updateVendorStats("Tenant", "Vendor", null, LocalDate.now());
-        
+    void updateVendorStats_UnknownOrBlank_DoesNothing() {
+        // Act
+        vendorManager.updateVendorStats("t1", "UNKNOWN", new BigDecimal("10"), LocalDate.now());
+        vendorManager.updateVendorStats("t1", "  ", new BigDecimal("10"), LocalDate.now());
+        vendorManager.updateVendorStats(null, "Test", new BigDecimal("10"), LocalDate.now());
+
+        // Assert
         verify(vendorRepository, never()).save(any());
     }
 }

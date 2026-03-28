@@ -1,152 +1,108 @@
 package com.finsight.backend.service;
 
-import com.finsight.backend.dto.CategoryInsightDto;
 import com.finsight.backend.dto.DashboardStatsDto;
 import com.finsight.backend.dto.MonthlySummaryDto;
-import com.finsight.backend.dto.ProjectionDto;
 import com.finsight.backend.entity.BankTransaction;
 import com.finsight.backend.repository.BankTransactionRepository;
 import com.finsight.backend.repository.ReceiptRepository;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class DashboardService {
 
-    private final ReceiptRepository receiptRepository;
     private final BankTransactionRepository bankTransactionRepository;
+    private final ReceiptRepository receiptRepository;
 
-    public DashboardService(ReceiptRepository receiptRepository, BankTransactionRepository bankTransactionRepository) {
-        this.receiptRepository = receiptRepository;
+    public DashboardService(BankTransactionRepository bankTransactionRepository, ReceiptRepository receiptRepository) {
         this.bankTransactionRepository = bankTransactionRepository;
+        this.receiptRepository = receiptRepository;
     }
 
-    public DashboardStatsDto getStats() {
-        DashboardStatsDto stats = new DashboardStatsDto();
-        String tenantId = "local_tenant";
-
-        stats.setTotalReceipts(receiptRepository.count());
-        stats.setTotalBankTransactions(bankTransactionRepository.count());
-        stats.setUnreconciledItems(bankTransactionRepository.countUnreconciledByTenantId(tenantId));
-
+    public DashboardStatsDto getStats(String tenantId, String accountType) {
+        BankTransaction.AccountType accType = parseAccountType(accountType);
+        
         LocalDate now = LocalDate.now();
-        LocalDate firstDayOfMonth = now.with(TemporalAdjusters.firstDayOfMonth());
-        LocalDate lastDayOfMonth = now.with(TemporalAdjusters.lastDayOfMonth());
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        LocalDate endOfMonth = now.withDayOfMonth(now.lengthOfMonth());
+        
+        BigDecimal monthlyInflow = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(
+                tenantId, BankTransaction.TransactionType.CREDIT, startOfMonth, endOfMonth, accType);
+        BigDecimal monthlyOutflow = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(
+                tenantId, BankTransaction.TransactionType.DEBIT, startOfMonth, endOfMonth, accType);
 
-        // Check if current month has data
-        BigDecimal monthIncome = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
-                tenantId, BankTransaction.TransactionType.CREDIT, firstDayOfMonth, lastDayOfMonth);
-        BigDecimal monthExpense = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
-                tenantId, BankTransaction.TransactionType.DEBIT, firstDayOfMonth, lastDayOfMonth);
+        monthlyInflow = monthlyInflow != null ? monthlyInflow : BigDecimal.ZERO;
+        monthlyOutflow = monthlyOutflow != null ? monthlyOutflow : BigDecimal.ZERO;
 
-        // Fallback: If current month is empty, use the most recent available transaction month
-        if ((monthIncome == null || monthIncome.compareTo(BigDecimal.ZERO) == 0) &&
-            (monthExpense == null || monthExpense.compareTo(BigDecimal.ZERO) == 0)) {
-            
-            List<BankTransaction> latest = bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(tenantId, PageRequest.of(0, 1));
-            if (!latest.isEmpty()) {
-                LocalDate latestDate = latest.get(0).getTxDate();
-                firstDayOfMonth = latestDate.with(TemporalAdjusters.firstDayOfMonth());
-                lastDayOfMonth = latestDate.with(TemporalAdjusters.lastDayOfMonth());
-                
-                monthIncome = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
-                        tenantId, BankTransaction.TransactionType.CREDIT, firstDayOfMonth, lastDayOfMonth);
-                monthExpense = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRange(
-                        tenantId, BankTransaction.TransactionType.DEBIT, firstDayOfMonth, lastDayOfMonth);
-            }
-        }
+        long pendingReconciliation = bankTransactionRepository.countUnreconciledByTenantIdAndAccountType(tenantId, accType);
+        long pendingReceipts = receiptRepository.countByTenantIdAndStatus(tenantId, "PENDING");
 
-        stats.setTotalIncome(monthIncome != null ? monthIncome : BigDecimal.ZERO);
-        stats.setTotalExpense(monthExpense != null ? monthExpense : BigDecimal.ZERO);
+        BigDecimal burnRate = calculateBurnRate(tenantId, accType);
 
-        // Daily Burn rate for the selected month
-        int daysToDivide = (firstDayOfMonth.getMonthValue() == now.getMonthValue()) ? now.getDayOfMonth() : lastDayOfMonth.getDayOfMonth();
-        if (stats.getTotalExpense().compareTo(BigDecimal.ZERO) > 0) {
-            stats.setCurrentMonthBurnRate(stats.getTotalExpense().divide(BigDecimal.valueOf(daysToDivide), 2, RoundingMode.HALF_UP));
-        } else {
-            stats.setCurrentMonthBurnRate(BigDecimal.ZERO);
-        }
-
-        // 1. Expense by Category
-        List<CategoryInsightDto> categoryInsights = bankTransactionRepository.getTopSpendingByCategory(tenantId);
-        stats.setExpenseByCategory(categoryInsights);
-
-        // 2. Last 30 Days Daily Spend (Trend)
-        LocalDate thirtyDaysAgo = now.minusDays(30);
-        List<BankTransaction> recentTxns = bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(tenantId, PageRequest.of(0, 5000))
-                .stream()
-                .filter(t -> !t.getTxDate().isBefore(thirtyDaysAgo))
-                .filter(t -> t.getType() == BankTransaction.TransactionType.DEBIT)
-                .collect(Collectors.toList());
-
-        stats.setLast30DaysDailySpend(recentTxns.stream()
-                .collect(Collectors.groupingBy(
-                        t -> t.getTxDate().toString(),
-                        Collectors.mapping(BankTransaction::getAmount, Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
-                ))
-                .entrySet().stream()
-                .map(e -> new DashboardStatsDto.DailySummaryDto(e.getKey(), e.getValue()))
-                .sorted((a, b) -> a.getDate().compareTo(b.getDate()))
-                .collect(Collectors.toList()));
+        DashboardStatsDto stats = new DashboardStatsDto();
+        stats.setTotalIncome(monthlyInflow);
+        stats.setTotalExpense(monthlyOutflow);
+        stats.setUnreconciledItems(pendingReconciliation);
+        stats.setTotalReceipts(pendingReceipts);
+        stats.setCurrentMonthBurnRate(burnRate);
+        
+        stats.setExpenseByCategory(bankTransactionRepository.getTopSpendingByCategory(tenantId, accType));
 
         return stats;
     }
 
-    public List<MonthlySummaryDto> getMonthlyHistory() {
-        String tenantId = "local_tenant";
-        // Fetch last 1000 transactions to be safe for 6 months
-        List<BankTransaction> txns = bankTransactionRepository.findAllByTenantIdOrderByTxDateDesc(tenantId, PageRequest.of(0, 1000));
-        
-        return txns.stream()
-                .collect(Collectors.groupingBy(
-                        t -> t.getTxDate().getYear() + "-" + String.format("%02d", t.getTxDate().getMonthValue()),
-                        Collectors.toList()
-                ))
-                .entrySet().stream()
-                .map(entry -> {
-                    BigDecimal income = entry.getValue().stream()
-                            .filter(t -> t.getType() == BankTransaction.TransactionType.CREDIT)
-                            .map(BankTransaction::getAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    BigDecimal expense = entry.getValue().stream()
-                            .filter(t -> t.getType() == BankTransaction.TransactionType.DEBIT)
-                            .map(BankTransaction::getAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    return new MonthlySummaryDto(entry.getKey(), income, expense);
-                })
-                .sorted((a, b) -> b.getMonth().compareTo(a.getMonth()))
-                .limit(6)
-                .collect(Collectors.toList());
+    public List<MonthlySummaryDto> getMonthlyHistory(String tenantId, int months, String accountType) {
+        BankTransaction.AccountType accType = parseAccountType(accountType);
+        List<MonthlySummaryDto> history = new ArrayList<>();
+        YearMonth currentMonth = YearMonth.now();
+
+        for (int i = 0; i < months; i++) {
+            YearMonth targetMonth = currentMonth.minusMonths(i);
+            LocalDate start = targetMonth.atDay(1);
+            LocalDate end = targetMonth.atEndOfMonth();
+
+            BigDecimal inflow = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(
+                    tenantId, BankTransaction.TransactionType.CREDIT, start, end, accType);
+            BigDecimal outflow = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(
+                    tenantId, BankTransaction.TransactionType.DEBIT, start, end, accType);
+
+            MonthlySummaryDto dto = new MonthlySummaryDto(
+                targetMonth.toString(),
+                inflow != null ? inflow : BigDecimal.ZERO,
+                outflow != null ? outflow : BigDecimal.ZERO
+            );
+            history.add(0, dto); // Add to beginning to maintain chronological order
+        }
+        return history;
     }
 
-    public List<ProjectionDto> getProjections() {
-        List<MonthlySummaryDto> history = getMonthlyHistory();
-        List<ProjectionDto> projections = new ArrayList<>();
-        
-        if (history.isEmpty()) return projections;
+    private BigDecimal calculateBurnRate(String tenantId, BankTransaction.AccountType accType) {
+        // Average monthly outflow for the last 3 months
+        LocalDate end = LocalDate.now().withDayOfMonth(1).minusDays(1);
+        LocalDate start = end.minusMonths(3).withDayOfMonth(1);
 
-        // Simple projection: Average of history months
-        BigDecimal totalExp = history.stream()
-                .map(MonthlySummaryDto::getExpense)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalOutflow = bankTransactionRepository.sumAmountByTenantIdAndTypeAndDateRangeAndAccountType(
+                tenantId, BankTransaction.TransactionType.DEBIT, start, end, accType);
         
-        BigDecimal avgExpense = totalExp.divide(BigDecimal.valueOf(history.size()), 2, RoundingMode.HALF_UP);
-
-        LocalDate nextMonth = LocalDate.now().plusMonths(1);
-        for (int i = 0; i < 3; i++) {
-            LocalDate target = nextMonth.plusMonths(i);
-            String monthLabel = target.getYear() + "-" + String.format("%02d", target.getMonthValue());
-            projections.add(new ProjectionDto(monthLabel, avgExpense));
+        if (totalOutflow == null || totalOutflow.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
         }
 
-        return projections;
+        return totalOutflow.divide(new BigDecimal(3), 2, RoundingMode.HALF_UP);
+    }
+
+    private BankTransaction.AccountType parseAccountType(String accountType) {
+        if (accountType == null) return BankTransaction.AccountType.MAINTENANCE;
+        try {
+            return BankTransaction.AccountType.valueOf(accountType.toUpperCase());
+        } catch (Exception e) {
+            return BankTransaction.AccountType.MAINTENANCE;
+        }
     }
 }

@@ -1,0 +1,10 @@
+#!/bin/bash
+# finsight-heal — One command to analyze runtime errors and generate a healing prompt
+#
+# Usage:
+#   finsight-heal               # Analyze last 5 errors
+#   finsight-heal --n=10        # Analyze last 10 errors
+#   finsight-heal --module=PARSER  # Filter by module
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+node "$SCRIPT_DIR/finsight-heal.js" "$@"

@@ -10,6 +10,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.ss.usermodel.*;
+import com.finsight.backend.util.RuntimeErrorLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -40,9 +42,10 @@ public class GeminiStatementParserService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiStatementParserService.class);
 
-    // Ensure AWT runs headless (required for PDFRenderer on server)
+    // Ensure AWT runs headless and PDFBox font cache is isolated
     static {
         System.setProperty("java.awt.headless", "true");
+        System.setProperty("pdfbox.fontcache", "/tmp/pdfbox-cache");
     }
 
     /** Minimum avg chars/page to classify a PDF as digital (not scanned). */
@@ -53,9 +56,6 @@ public class GeminiStatementParserService {
 
     /** DPI for rendering scanned PDF pages to images. 150 DPI ≈ 200-500 KB/page PNG. */
     private static final int RENDER_DPI = 150;
-
-    /** Pages per chunk for the scanned (binary PDF) path. */
-    private static final int PAGES_PER_CHUNK = 2;
 
     /** Max concurrent Gemini API calls — free tier supports 15 req/min. */
     private static final int MAX_CONCURRENT_GEMINI_CALLS = 5;
@@ -91,7 +91,10 @@ public class GeminiStatementParserService {
               "vendor": "cleaned merchant name",
               "type": "DEBIT|CREDIT",
               "amount": 0.00,
-              "category": ""
+              "category": "",
+              "confidenceScore": 0.95,
+              "aiReasoning": "Why this vendor/category was chosen",
+              "originalSnippet": "Exact text substring from source"
             }
           ]
         }
@@ -118,11 +121,14 @@ public class GeminiStatementParserService {
           "transactions": [
             {
               "txDate": "YYYY-MM-DD",
-              "description": "original narration",
+              "description": "original narration from image",
               "vendor": "cleaned merchant name",
               "type": "DEBIT|CREDIT",
               "amount": 0.00,
-              "category": ""
+              "category": "",
+              "confidenceScore": 0.95,
+              "aiReasoning": "Why this vendor/category was chosen",
+              "originalSnippet": "Visual description of where data was found"
             }
           ]
         }
@@ -138,6 +144,48 @@ public class GeminiStatementParserService {
 
     // ── Public entry points ──────────────────────────────────────────────────
 
+    public List<ParsedBankTransactionDto> parseExcelOrCsv(File file, String apiKey) throws Exception {
+        log.info("Gemini AI: Parsing Excel/CSV statement: {}", file.getName());
+        
+        StringBuilder content = new StringBuilder();
+        if (file.getName().toLowerCase().endsWith(".csv")) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+                String line;
+                int count = 0;
+                while ((line = reader.readLine()) != null && count < 1000) { // Limit to 1000 lines for AI
+                    content.append(line).append("\n");
+                    count++;
+                }
+            }
+        } else {
+            // For Excel, we use POI to get a CSV-like text representation
+            try (Workbook workbook = WorkbookFactory.create(file)) {
+                Sheet sheet = workbook.getSheetAt(0);
+                for (int i = 0; i <= Math.min(sheet.getLastRowNum(), 1000); i++) {
+                    Row row = sheet.getRow(i);
+                    if (row == null) continue;
+                    for (int j = 0; j < row.getLastCellNum(); j++) {
+                        content.append(getExcelCellValue(row.getCell(j))).append(",");
+                    }
+                    content.append("\n");
+                }
+            }
+        }
+
+        return geminiClient.callGeminiWithText(content.toString(), PROMPT_TEXT, apiKey);
+    }
+
+    private String getExcelCellValue(Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellType()) {
+            case STRING: return cell.getStringCellValue();
+            case NUMERIC: return String.valueOf(cell.getNumericCellValue());
+            case FORMULA: return cell.getCellFormula();
+            case BOOLEAN: return String.valueOf(cell.getBooleanCellValue());
+            default: return "";
+        }
+    }
+
     public List<ParsedBankTransactionDto> parsePdfStatement(File file) throws Exception {
         AppConfig config = appConfigService.getConfig();
         String apiKey = config.getGeminiApiKey();
@@ -145,7 +193,7 @@ public class GeminiStatementParserService {
         log.info("Starting PDF Statement Parse. File: {}, Mode: {}", file.getName(), mode);
 
         try {
-            if ("MODE_HIGH_ACCURACY".equals(mode)) {
+            if ("MODE_HIGH_ACCURACY".equals(mode) || "MODE_MAX_INTELLIGENCE".equals(mode)) {
                 return extractWithGemini(file, apiKey);
             }
 
@@ -168,15 +216,37 @@ public class GeminiStatementParserService {
                 log.info("Confidence ({}%) < 70% or 0 transactions. Falling back to Gemini AI Parser...", confidence);
 
             } catch (Exception e) {
-                log.info("Hybrid Mode: Local extraction failed. Falling back to Gemini...");
+                log.info("Hybrid Mode: Local extraction failed or suboptimal. Falling back to robust Gemini pipeline...");
                 if ("MODE_LOW_COST".equals(mode)) throw e;
             }
 
             return extractWithGemini(file, apiKey);
 
         } catch (Exception e) {
-            log.error("Error during statement extraction: {}", e.getMessage(), e);
-            throw new IOException(e);
+            if ("MODE_LOW_COST".equals(mode)) {
+                log.error("Fatal error during low-cost extraction: {}", e.getMessage());
+                throw e;
+            }
+            log.error("Fatal error during statement extraction. Re-routing as Scanned PDF for safety: {}", e.getMessage());
+            RuntimeErrorLogger.log(
+                RuntimeErrorLogger.Module.GEMINI,
+                e.getClass().getSimpleName(),
+                e,
+                java.util.Map.of("file", file.getName(), "mode", mode != null ? mode : "null"),
+                "Parsed transactions from Gemini",
+                e.getMessage() != null ? e.getMessage() : "Unknown Gemini failure"
+            );
+            // Safe fallback to binary image rendering if metadata parsing itself fails
+            return extractBinaryFallback(file, apiKey);
+        }
+    }
+
+    private List<ParsedBankTransactionDto> extractBinaryFallback(File file, String apiKey) {
+        try (PDDocument document = Loader.loadPDF(file)) {
+            return extractFromScannedPdf(document, apiKey);
+        } catch (Exception fatal) {
+            log.error("Critical failure in PDF binary fallback: {}", fatal.getMessage());
+            return new ArrayList<>();
         }
     }
 
@@ -247,15 +317,24 @@ public class GeminiStatementParserService {
     private boolean isDigitalPdf(PDDocument document) {
         try {
             PDFTextStripper stripper = new PDFTextStripper();
-            int samplePages = Math.min(3, document.getNumberOfPages());
+            stripper.setSortByPosition(true);
+            
+            // Sample up to 5 pages for better coverage
+            int sampleCount = Math.min(5, document.getNumberOfPages());
             stripper.setStartPage(1);
-            stripper.setEndPage(samplePages);
-            String text = stripper.getText(document);
-            double avgCharsPerPage = (double) text.trim().length() / samplePages;
-            log.debug("PDF text sample: {:.0f} avg chars/page (threshold={})", avgCharsPerPage, DIGITAL_CHARS_PER_PAGE_THRESHOLD);
-            return avgCharsPerPage > DIGITAL_CHARS_PER_PAGE_THRESHOLD;
+            stripper.setEndPage(sampleCount);
+            
+            String text = stripper.getText(document).trim();
+            int totalLength = text.length();
+            double avgCharsPerPage = (double) totalLength / sampleCount;
+            
+            log.debug("PDF type detection: {} chars total, {:.1f} avg/page", totalLength, avgCharsPerPage);
+            
+            // A digital PDF must have both a minimum total length AND minimum chars/page
+            return totalLength > (DIGITAL_CHARS_PER_PAGE_THRESHOLD * 2) 
+                   && avgCharsPerPage > DIGITAL_CHARS_PER_PAGE_THRESHOLD;
         } catch (Exception e) {
-            log.warn("PDF type detection failed, defaulting to scanned path: {}", e.getMessage());
+            log.warn("PDF type detection triggered internal error (likely font-related). Defaulting to SCANNED path: {}", e.getMessage());
             return false;
         }
     }
@@ -291,18 +370,33 @@ public class GeminiStatementParserService {
      */
     private List<String> splitTextIntoChunks(String text, int maxChars) {
         List<String> chunks = new ArrayList<>();
-        String[] lines = text.split("\n");
+        if (text == null || text.isBlank()) return chunks;
+
+        String[] lines = text.split("\r?\n");
         StringBuilder current = new StringBuilder();
+        java.util.Set<Integer> chunkHashes = new java.util.HashSet<>();
 
         for (String line : lines) {
+            String sanitizedLine = line.trim();
+            if (sanitizedLine.isEmpty()) continue;
+
             if (current.length() + line.length() + 1 > maxChars && current.length() > 0) {
-                chunks.add(current.toString().trim());
+                String chunkStr = current.toString().trim();
+                int hash = chunkStr.hashCode();
+                if (!chunkHashes.contains(hash)) {
+                    chunks.add(chunkStr);
+                    chunkHashes.add(hash);
+                }
                 current = new StringBuilder();
             }
             current.append(line).append("\n");
         }
+        
         if (current.length() > 0) {
-            chunks.add(current.toString().trim());
+            String finalChunk = current.toString().trim();
+            if (!chunkHashes.contains(finalChunk.hashCode())) {
+                chunks.add(finalChunk);
+            }
         }
         return chunks;
     }

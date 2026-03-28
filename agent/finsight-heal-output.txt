@@ -1,0 +1,282 @@
+═══════════════════════════════════════════════════════════════════
+  FINSIGHT BANK STATEMENT PARSER — RUNTIME HEALING PROMPT (v2)    
+═══════════════════════════════════════════════════════════════════
+Generated: 2026-03-24T04:19:48.845Z
+Total errors: 4 | Unique patterns: 3
+
+SYSTEM CONTEXT:
+  Project: Finsight — Multi-bank statement parser (XLSX, CSV, PDF)
+  Stack: Java 21, Spring Boot, Apache POI, Gemini AI, PaddleOCR
+  Key parsers: XlsxStatementParser, CsvStatementParser, GeminiStatementParserService
+
+───────────────────────────────────────────────────────────────────
+PATTERN 1/3  🟡 HIGH
+  Module   : PARSER
+  Root Key : PARSER::DateParseFailure
+  Frequency: 2 occurrences | Last: 2026-03-24T02:02:10Z
+
+  Sample Inputs That Triggered This:
+    [1] {"rawCellValue":"01/Jan/2026","cellType":"STRING"}
+    [2] {"rawCellValue":"24-03-2026 01:25 PM","cellType":"STRING"}
+
+  Expected: A parseable date string
+  Actual  : Could not parse: 01/Jan/2026
+
+📋 Bank Parsing Context:
+  Known good date formats: dd/MM/yyyy, MM/dd/yyyy, yyyy-MM-dd, dd-MM-yyyy, dd/MMM/yyyy, d/MMM/yyyy, dd MMM yyyy, dd/MM/yyyy HH:mm:ss, dd/MM/yyyy hh:mm a
+  Failed date inputs: "01/Jan/2026", "24-03-2026 01:25 PM"
+  Likely bank: Likely ICICI (dd/MMM/yyyy format)
+  Check: CsvStatementParser.DATE_FORMATS and XlsxStatementParser.parseDateFromCell()
+
+
+  Relevant Source (first 50 lines):
+  ```java
+  // com/finsight/backend/service/XlsxStatementParser.java
+  package com.finsight.backend.service;
+  
+  import com.fasterxml.jackson.databind.ObjectMapper;
+  import com.finsight.backend.dto.HeaderMetadata;
+  import com.finsight.backend.dto.ParsedBankTransactionDto;
+  import com.finsight.backend.entity.ParserPattern;
+  import com.finsight.backend.util.RuntimeErrorLogger;
+  import org.apache.poi.ss.usermodel.*;
+  import org.slf4j.Logger;
+  import org.slf4j.LoggerFactory;
+  import org.springframework.stereotype.Component;
+  
+  import java.io.File;
+  import java.io.FileInputStream;
+  import java.math.BigDecimal;
+  import java.time.LocalDate;
+  import java.time.ZoneId;
+  import java.util.*;
+  
+  /**
+   * Dedicated parser for Excel (.xlsx) bank statements.
+   * Uses Apache POI to extract transactions.
+   * Handles header detection and robust column mapping.
+   */
+  @Component
+  public class XlsxStatementParser {
+  
+      private static final Logger log = LoggerFactory.getLogger(XlsxStatementParser.class);
+      private final CsvStatementParser csvParser;
+      private final ParserPatternService patternService;
+      private final ObjectMapper objectMapper;
+  
+      public XlsxStatementParser(CsvStatementParser csvParser, ParserPatternService patternService, ObjectMapper objectMapper) {
+          this.csvParser = csvParser;
+          this.patternService = patternService;
+          this.objectMapper = objectMapper;
+      }
+  
+      public List<ParsedBankTransactionDto> parse(File file, String tenantId) throws Exception {
+          log.info("XlsxStatementParser: parsing '{}' for tenant '{}'", file.getName(), tenantId);
+          List<ParsedBankTransactionDto> results = new ArrayList<>();
+  
+          try (FileInputStream fis = new FileInputStream(file);
+               Workbook workbook = WorkbookFactory.create(fis)) {
+              
+              Sheet sheet = workbook.getSheetAt(0);
+              int rowCount = sheet.getPhysicalNumberOfRows();
+              if (rowCount == 0) throw new IllegalArgumentException("Excel file is empty.");
+  
+              HeaderMetadata meta = detectHeader(sheet);
+  ```
+
+  ┌─ TASK FOR LLM ──────────────────────────────────────────────┐
+  │ 1. ROOT CAUSE: Why does "PARSER::DateParseFailure" occur?
+  │    Be specific — reference exact method / line if possible.
+  │
+  │ 2. MINIMAL FIX (code diff only, no explanations):
+  │    ```diff
+  │    - old line
+  │    + new line
+  │    ```
+  │
+  │ 3. RISK: Low / Medium / High — and why.
+  │
+  │ 4. UNIT TEST (JUnit 5, test class: PARSERParserTest):
+  │    Cover the exact failing input shown in Sample Inputs above.
+  └─────────────────────────────────────────────────────────────┘
+
+───────────────────────────────────────────────────────────────────
+PATTERN 2/3  🟠 MEDIUM
+  Module   : STATEMENT_UPLOAD
+  Root Key : STATEMENT_UPLOAD::FileAccessError
+  Frequency: 1 occurrences | Last: 2026-03-24T02:05:00Z
+  Message  : Tomcat temp file deleted before async thread read it
+
+  Sample Inputs That Triggered This:
+    [1] {"fileId":"abc123","fileName":"icici_statement.xlsx","tenantId":"default","extension":".xlsx"}
+
+  Expected: Successful extraction and persistence
+  Actual  : NoSuchFileException
+
+  Stack (app frames only):
+    java.nio.file.NoSuchFileException: upload_xxx.tmp
+
+  Relevant Source (first 50 lines):
+  ```java
+  // com/finsight/backend/service/BankStatementService.java
+  package com.finsight.backend.service;
+  
+  import com.finsight.backend.dto.BankTransactionDto;
+  import com.finsight.backend.dto.ParsedBankTransactionDto;
+  import com.finsight.backend.dto.SyncStatus;
+  import com.finsight.backend.entity.BankTransaction;
+  import com.finsight.backend.entity.Category;
+  import com.finsight.backend.entity.StatementUpload;
+  import com.finsight.backend.repository.BankTransactionRepository;
+  import com.finsight.backend.repository.StatementUploadRepository;
+  import org.slf4j.Logger;
+  import org.slf4j.LoggerFactory;
+  import org.springframework.data.domain.Page;
+  import org.springframework.data.domain.Pageable;
+  import com.finsight.backend.util.RuntimeErrorLogger;
+  import org.springframework.stereotype.Service;
+  import org.springframework.web.multipart.MultipartFile;
+  
+  import java.io.File;
+  import java.nio.file.Files;
+  import java.nio.file.StandardCopyOption;
+  import java.security.MessageDigest;
+  import java.time.LocalDate;
+  import java.time.LocalDateTime;
+  import java.util.ArrayList;
+  import java.util.List;
+  import java.util.Map;
+  import java.util.concurrent.CompletableFuture;
+  import java.util.concurrent.ConcurrentHashMap;
+  
+  @Service
+  public class BankStatementService {
+  
+      private static final Logger log = LoggerFactory.getLogger(BankStatementService.class);
+  
+      private final GeminiStatementParserService geminiStatementParserService;
+      private final CsvStatementParser csvStatementParser;
+      private final XlsxStatementParser xlsxStatementParser;
+      private final BankTransactionRepository bankTransactionRepository;
+      private final BankTransactionCategorizationService categorizationService;
+      private final FlatTransactionEnricher flatTransactionEnricher;
+      private final StatementUploadRepository statementUploadRepository;
+      private final AppConfigService appConfigService;
+      private String uploadBaseDir = "app-data/uploads";
+  
+      private final Map<String, SyncStatus> uploadStatuses = new ConcurrentHashMap<>();
+  
+      public BankStatementService(GeminiStatementParserService geminiStatementParserService,
+                                  CsvStatementParser csvStatementParser,
+                                  XlsxStatementParser xlsxStatementParser,
+  ```
+
+  ┌─ TASK FOR LLM ──────────────────────────────────────────────┐
+  │ 1. ROOT CAUSE: Why does "STATEMENT_UPLOAD::FileAccessError" occur?
+  │    Be specific — reference exact method / line if possible.
+  │
+  │ 2. MINIMAL FIX (code diff only, no explanations):
+  │    ```diff
+  │    - old line
+  │    + new line
+  │    ```
+  │
+  │ 3. RISK: Low / Medium / High — and why.
+  │
+  │ 4. UNIT TEST (JUnit 5, test class: STATEMENT_UPLOADParserTest):
+  │    Cover the exact failing input shown in Sample Inputs above.
+  └─────────────────────────────────────────────────────────────┘
+
+───────────────────────────────────────────────────────────────────
+PATTERN 3/3  ⚪ INFO
+  Module   : STATEMENT_UPLOAD
+  Root Key : STATEMENT_UPLOAD::JpaSystemException
+  Frequency: 1 occurrences | Last: 2026-03-24T02:23:52.910545Z
+  Message  : could not execute statement [[SQLITE_CONSTRAINT_CHECK] A CHECK constraint failed (CHECK constraint failed: reconciliation_status in ('MATCHED','MANUAL_REVIEW'))] [insert into bank_transactions (account_type,ai_reasoning,amount,audit_log,block,category_id,confidence_score,created_at,description,flat_number,floor,is_duplicate,is_manual_override,match_score,match_type,matched_receipt_ids,original_snippet,receipt_id,reconciled,reconciliation_status,reference_number,status,sub_category,tenant_id,tx_date,type,vendor,vendor_normalized,vendor_type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
+
+  Sample Inputs That Triggered This:
+    [1] {"tenantId":"local_tenant","extension":".xlsx","fileName":"c0a4a163-223c-43d9-a2ba-78093ecda3a1.xlsx","fileId":"c0a4a163-223c-43d9-a2ba-78093ecda3a1"}
+
+  Expected: Successful extraction and persistence
+  Actual  : could not execute statement [[SQLITE_CONSTRAINT_CHECK] A CHECK constraint failed (CHECK constraint failed: reconciliation_status in ('MATCHED','MANUAL_REVIEW'))] [insert into bank_transactions (account_type,ai_reasoning,amount,audit_log,block,category_id,confidence_score,created_at,description,flat_number,floor,is_duplicate,is_manual_override,match_score,match_type,matched_receipt_ids,original_snippet,receipt_id,reconciled,reconciliation_status,reference_number,status,sub_category,tenant_id,tx_date,type,vendor,vendor_normalized,vendor_type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
+
+  Stack (app frames only):
+    org.springframework.orm.jpa.JpaSystemException: could not execute statement [[SQLITE_CONSTRAINT_CHECK] A CHECK constraint failed (CHECK constraint failed: reconciliation_status in ('MATCHED','MANUAL_REVIEW'))] [insert into bank_transactions (account_type,ai_reasoning,amount,audit_log,block,category_id,confidence_score,created_at,description,flat_number,floor,is_duplicate,is_manual_override,match_score,match_type,matched_receipt_ids,original_snippet,receipt_id,reconciled,reconciliation_status,reference_number,status,sub_category,tenant_id,tx_date,type,vendor,vendor_normalized,vendor_type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
+    	at com.finsight.back
+      ... [11 framework/JVM frames omitted]
+
+  Relevant Source (first 50 lines):
+  ```java
+  // com/finsight/backend/service/BankStatementService.java
+  package com.finsight.backend.service;
+  
+  import com.finsight.backend.dto.BankTransactionDto;
+  import com.finsight.backend.dto.ParsedBankTransactionDto;
+  import com.finsight.backend.dto.SyncStatus;
+  import com.finsight.backend.entity.BankTransaction;
+  import com.finsight.backend.entity.Category;
+  import com.finsight.backend.entity.StatementUpload;
+  import com.finsight.backend.repository.BankTransactionRepository;
+  import com.finsight.backend.repository.StatementUploadRepository;
+  import org.slf4j.Logger;
+  import org.slf4j.LoggerFactory;
+  import org.springframework.data.domain.Page;
+  import org.springframework.data.domain.Pageable;
+  import com.finsight.backend.util.RuntimeErrorLogger;
+  import org.springframework.stereotype.Service;
+  import org.springframework.web.multipart.MultipartFile;
+  
+  import java.io.File;
+  import java.nio.file.Files;
+  import java.nio.file.StandardCopyOption;
+  import java.security.MessageDigest;
+  import java.time.LocalDate;
+  import java.time.LocalDateTime;
+  import java.util.ArrayList;
+  import java.util.List;
+  import java.util.Map;
+  import java.util.concurrent.CompletableFuture;
+  import java.util.concurrent.ConcurrentHashMap;
+  
+  @Service
+  public class BankStatementService {
+  
+      private static final Logger log = LoggerFactory.getLogger(BankStatementService.class);
+  
+      private final GeminiStatementParserService geminiStatementParserService;
+      private final CsvStatementParser csvStatementParser;
+      private final XlsxStatementParser xlsxStatementParser;
+      private final BankTransactionRepository bankTransactionRepository;
+      private final BankTransactionCategorizationService categorizationService;
+      private final FlatTransactionEnricher flatTransactionEnricher;
+      private final StatementUploadRepository statementUploadRepository;
+      private final AppConfigService appConfigService;
+      private String uploadBaseDir = "app-data/uploads";
+  
+      private final Map<String, SyncStatus> uploadStatuses = new ConcurrentHashMap<>();
+  
+      public BankStatementService(GeminiStatementParserService geminiStatementParserService,
+                                  CsvStatementParser csvStatementParser,
+                                  XlsxStatementParser xlsxStatementParser,
+  ```
+
+  ┌─ TASK FOR LLM ──────────────────────────────────────────────┐
+  │ 1. ROOT CAUSE: Why does "STATEMENT_UPLOAD::JpaSystemException" occur?
+  │    Be specific — reference exact method / line if possible.
+  │
+  │ 2. MINIMAL FIX (code diff only, no explanations):
+  │    ```diff
+  │    - old line
+  │    + new line
+  │    ```
+  │
+  │ 3. RISK: Low / Medium / High — and why.
+  │
+  │ 4. UNIT TEST (JUnit 5, test class: STATEMENT_UPLOADParserTest):
+  │    Cover the exact failing input shown in Sample Inputs above.
+  └─────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+END — Paste this into your LLM. DO NOT auto-apply fixes.
+Review diffs carefully. Keep changes minimal & backward-compatible.
+═══════════════════════════════════════════════════════════════════

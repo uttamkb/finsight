@@ -1,6 +1,7 @@
 package com.finsight.backend.client;
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -8,6 +9,13 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import org.springframework.stereotype.Component;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.Arrays;
+import java.util.List;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -25,13 +33,17 @@ public class GoogleSheetsClient {
 
     public Sheets getSheetsService(String serviceAccountJson) throws GeneralSecurityException, IOException {
         final HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        Credential credential = null;
+        GoogleCredentials credentials;
+        
         if (serviceAccountJson != null && !serviceAccountJson.trim().isEmpty()) {
-            credential = com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-                    .fromStream(new java.io.ByteArrayInputStream(serviceAccountJson.getBytes()))
+            credentials = GoogleCredentials
+                    .fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes(StandardCharsets.UTF_8)))
                     .createScoped(SCOPES);
+        } else {
+            credentials = GoogleCredentials.getApplicationDefault().createScoped(SCOPES);
         }
-        return new Sheets.Builder(httpTransport, JSON_FACTORY, credential)
+        
+        return new Sheets.Builder(httpTransport, JSON_FACTORY, new HttpCredentialsAdapter(credentials))
                 .setApplicationName(APPLICATION_NAME)
                 .build();
     }

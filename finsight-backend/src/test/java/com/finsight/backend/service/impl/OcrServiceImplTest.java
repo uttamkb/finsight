@@ -34,6 +34,9 @@ class OcrServiceImplTest {
     @Mock
     private VendorDictionaryService vendorDictionaryService;
 
+    @Mock
+    private java.net.http.HttpClient httpClient;
+
     private OcrServiceImpl ocrService;
     private AppConfig mockConfig;
 
@@ -42,7 +45,7 @@ class OcrServiceImplTest {
         MockitoAnnotations.openMocks(this);
         mockConfig = new AppConfig();
         when(appConfigService.getConfig()).thenReturn(mockConfig);
-        ocrService = spy(new OcrServiceImpl(appConfigService, vendorDictionaryService));
+        ocrService = spy(new OcrServiceImpl(appConfigService, vendorDictionaryService, httpClient));
     }
 
     private Map<String, Object> localResult(double confidence, String rawText) {

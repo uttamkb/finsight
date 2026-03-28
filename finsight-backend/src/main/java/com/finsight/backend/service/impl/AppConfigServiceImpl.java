@@ -5,8 +5,6 @@ import com.finsight.backend.repository.AppConfigRepository;
 import com.finsight.backend.service.AppConfigService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,14 +32,26 @@ public class AppConfigServiceImpl implements AppConfigService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "settings", key = "'app_config'")
     public AppConfig getConfig() {
         AppConfig config = repository.findByTenantId(TENANT_ID).orElseGet(() -> {
             log.info("No config found for tenant '{}', creating default.", TENANT_ID);
             AppConfig defaultConfig = new AppConfig();
+            defaultConfig.setTenantId(TENANT_ID);
             defaultConfig.setApartmentName("My Apartment");
-            return repository.save(defaultConfig);
+            try {
+                return repository.save(defaultConfig);
+            } catch (Exception e) {
+                log.error("Failed to save default config: {}", e.getMessage());
+                return defaultConfig; // Return transient object to avoid NPE
+            }
         });
+
+        if (config == null) {
+            log.warn("AppConfig is still null after auto-creation attempt. Returning emergency fallback.");
+            config = new AppConfig();
+            config.setTenantId(TENANT_ID);
+            config.setApartmentName("Emergency Fallback");
+        }
 
         // Apply environment/property fallbacks ONLY if database values are null.
         // This allows users to explicitly save an empty string in the UI to disable a feature.
@@ -62,7 +72,6 @@ public class AppConfigServiceImpl implements AppConfigService {
     }
 
     @Override
-    @CacheEvict(value = "settings", key = "'app_config'")
     public AppConfig saveConfig(AppConfig incoming) {
         AppConfig existing = repository.findByTenantId(TENANT_ID).orElse(new AppConfig());
         existing.setApartmentName(incoming.getApartmentName());

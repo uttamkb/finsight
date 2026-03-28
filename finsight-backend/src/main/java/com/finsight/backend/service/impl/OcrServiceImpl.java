@@ -36,13 +36,20 @@ public class OcrServiceImpl implements OcrService {
 
     private final AppConfigService appConfigService;
     private final VendorDictionaryService vendorDictionaryService;
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent";
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final HttpClient httpClient;
 
-    public OcrServiceImpl(AppConfigService appConfigService, VendorDictionaryService vendorDictionaryService) {
+    @org.springframework.beans.factory.annotation.Value("${ai.gemini.model:models/gemini-2.5-flash}")
+    private String geminiModel;
+
+    private static final String GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/";
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public OcrServiceImpl(AppConfigService appConfigService,
+                          VendorDictionaryService vendorDictionaryService,
+                          HttpClient httpClient) {
         this.appConfigService = appConfigService;
         this.vendorDictionaryService = vendorDictionaryService;
+        this.httpClient = httpClient;
     }
 
     @Override
@@ -200,7 +207,23 @@ public class OcrServiceImpl implements OcrService {
             mimeType = fileName.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg";
         }
 
-        String prompt = "Extract receipt data: vendor, amount (numeric), date (YYYY-MM-DD). Return ONLY JSON: {\"vendor\":\"...\",\"amount\":123.45,\"date\":\"...\"}";
+        String prompt = """
+            Extract receipt data: vendor, amount (numeric), date (YYYY-MM-DD). 
+            
+            COUNTERPARTY RULES:
+            1. Extract clean merchant/person name.
+            2. Remove prefixes like UPI, IMPS, NEFT, POS, CARD and bank names.
+            
+            Return ONLY a JSON object matching this schema: 
+            {
+              "vendor":"...",
+              "amount":123.45,
+              "date":"YYYY-MM-DD",
+              "confidenceScore": 0.95,
+              "aiReasoning": "Why this vendor was chosen",
+              "originalSnippet": "Exact text substring from source"
+            }
+            """;
         if (localOcrText != null && !localOcrText.trim().isEmpty()) {
             prompt += "\n\nLocal OCR detected the following text (may be partial/noisy):\n" + localOcrText;
             prompt += "\n\nUse this text to assist your high-accuracy extraction from the image.";
@@ -217,7 +240,7 @@ public class OcrServiceImpl implements OcrService {
         }
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(GEMINI_API_URL))
+                .uri(URI.create(GEMINI_API_BASE_URL + geminiModel + ":generateContent"))
                 .header("Content-Type", "application/json")
                 .header("x-goog-api-key", apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))

@@ -1,7 +1,6 @@
 package com.finsight.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.finsight.backend.dto.AnomalyInsightDto;
 import com.finsight.backend.dto.GeminiAnomalyResponse;
 import com.finsight.backend.entity.AppConfig;
@@ -27,7 +26,11 @@ import java.util.List;
 public class AnomalyDetectionService {
 
     private static final Logger log = LoggerFactory.getLogger(AnomalyDetectionService.class);
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent";
+
+    @org.springframework.beans.factory.annotation.Value("${ai.gemini.model:models/gemini-2.5-flash}")
+    private String geminiModel;
+
+    private static final String GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/";
 
     private final BankTransactionRepository bankTransactionRepository;
     private final ForensicAnomalyRepository forensicAnomalyRepository;
@@ -62,12 +65,14 @@ public class AnomalyDetectionService {
 
     public AnomalyDetectionService(BankTransactionRepository bankTransactionRepository, 
                                    ForensicAnomalyRepository forensicAnomalyRepository,
-                                   AppConfigService appConfigService) {
+                                   AppConfigService appConfigService,
+                                   HttpClient httpClient,
+                                   ObjectMapper objectMapper) {
         this.bankTransactionRepository = bankTransactionRepository;
         this.forensicAnomalyRepository = forensicAnomalyRepository;
         this.appConfigService = appConfigService;
-        this.httpClient = HttpClient.newBuilder().build();
-        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        this.httpClient = httpClient;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -116,7 +121,7 @@ public class AnomalyDetectionService {
                 """, escapeJson(ANOMALY_PROMPT), escapeJson(txnsJson));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(GEMINI_API_URL))
+                    .uri(URI.create(GEMINI_API_BASE_URL + geminiModel + ":generateContent"))
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))

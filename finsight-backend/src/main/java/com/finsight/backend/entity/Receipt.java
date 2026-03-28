@@ -54,6 +54,13 @@ public class Receipt {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reconciliation_status")
+    private ReconciliationStatus reconciliationStatus = ReconciliationStatus.MANUAL_REVIEW;
+
+    @Column(name = "matched_bank_transaction_id")
+    private Long matchedBankTransactionId;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -167,4 +174,10 @@ public class Receipt {
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
+
+    public ReconciliationStatus getReconciliationStatus() { return reconciliationStatus; }
+    public void setReconciliationStatus(ReconciliationStatus reconciliationStatus) { this.reconciliationStatus = reconciliationStatus; }
+
+    public Long getMatchedBankTransactionId() { return matchedBankTransactionId; }
+    public void setMatchedBankTransactionId(Long matchedBankTransactionId) { this.matchedBankTransactionId = matchedBankTransactionId; }
 }

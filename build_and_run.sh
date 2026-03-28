@@ -7,6 +7,9 @@ echo "=========================================="
 echo "    FinSight CI/CD: Build and Run         "
 echo "=========================================="
 
+# Disable Jansi to avoid "Operation not permitted" on .jnilib.lck files on macOS
+export MAVEN_OPTS="-Djansi.force=false -Dstyle.color=never"
+
 echo ">>> [0/4] Cleaning up existing services..."
 lsof -ti :8080 | xargs kill -9 2>/dev/null || true
 lsof -ti :3000 | xargs kill -9 2>/dev/null || true
@@ -15,12 +18,15 @@ lsof -ti :3000 | xargs kill -9 2>/dev/null || true
 echo ""
 echo ">>> [1/4] Building Backend (Spring Boot) & Setting up TrOCR..."
 cd finsight-backend
-mkdir -p .m2_repo /tmp
+mkdir -p tmp
+# Use compile -DskipTests to match manual build success
 if [ -f "mvnw" ]; then
-    ./mvnw clean compile -DskipTests -Dmaven.repo.local=$(pwd)/.m2_repo -Djava.io.tmpdir=/tmp
+    ./mvnw clean compile -DskipTests -Djava.io.tmpdir=$(pwd)/tmp
 else
-    mvn clean compile -DskipTests -Dmaven.repo.local=$(pwd)/.m2_repo -Djava.io.tmpdir=/tmp
+    mvn clean compile -DskipTests -Djava.io.tmpdir=$(pwd)/tmp
 fi
+# Remove the MockMaker file causing FileSystemException if it's redundant for Mockito 5
+# rm -f src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
 
 # Setup Python Venv for PaddleOCR if not exists
 SCRIPTS_DIR="src/main/resources/scripts"
@@ -40,12 +46,12 @@ else
 fi
 cd ..
 
-# 2. Build Frontend
+# 2. Setup Frontend
 echo ""
-echo ">>> [2/4] Building Frontend (Next.js)..."
+echo ">>> [2/4] Setting up Frontend (Next.js)..."
 cd finsight-frontend
 npm install
-npm run build
+# npm run build # Skipped for DEV mode
 cd ..
 
 echo ""
@@ -61,8 +67,27 @@ mkdir -p tmp
 export TMPDIR=$(pwd)/tmp
 
 # Run backend directly using Maven to avoid JAR assembly permission issues
-mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Djava.io.tmpdir=$(pwd)/tmp" -Dmaven.repo.local=$(pwd)/.m2_repo > backend.log 2>&1 &
+# Add -Dspring-boot.run.fork=false if necessary, but backgrounding it with & is safer.
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Djava.io.tmpdir=$(pwd)/tmp" > backend.log 2>&1 &
 BACKEND_PID=$!
+
+# Wait for backend to start (check port 8080)
+echo ">>> Waiting for backend to initialize on port 8080..."
+MAX_RETRIES=30
+COUNT=0
+while ! lsof -i :8080 >/dev/null && [ $COUNT -lt $MAX_RETRIES ]; do
+    sleep 2
+    COUNT=$((COUNT+1))
+    if [ $((COUNT % 5)) -eq 0 ]; then
+        echo "...still waiting ($COUNT/$MAX_RETRIES)"
+    fi
+done
+
+if ! lsof -i :8080 >/dev/null; then
+    echo "❌ Error: Backend failed to start. Check finsight-backend/backend.log"
+    exit 1
+fi
+echo "✅ Backend successfully started on port 8080."
 
 # --- CI/CD: Asynchronous Background Tests ---
 echo ">>> [CI/CD] Triggering Background Unit Tests..."
@@ -70,9 +95,12 @@ REPORT_FILE="$(pwd)/full_test_report.log"
 echo "--- FinSight CI/CD Test Report: $(date) ---" > "$REPORT_FILE"
 
 (
+    # Add a small delay to avoid resource conflicts during the initial app warmup
+    sleep 10
     # 1. Run Backend Tests
     echo "--- 1. Backend Unit Tests ---" >> "$REPORT_FILE"
-    mvn test -Dmaven.repo.local=$(pwd)/.m2_repo -Djava.io.tmpdir=$(pwd)/tmp -Djunit.jupiter.tempdir.parent.path=$(pwd)/tmp >> "$REPORT_FILE" 2>&1
+    # Use -o (offline) or skip re-resources if we can, but let's just ensure it's a separate run
+    mvn test -Djava.io.tmpdir=$(pwd)/tmp -Djunit.jupiter.tempdir.parent.path=$(pwd)/tmp >> "$REPORT_FILE" 2>&1
     BACKEND_EXIT=$?
     
     if [ $BACKEND_EXIT -eq 0 ]; then
@@ -117,10 +145,26 @@ sleep 5
 
 # 4. Start Frontend
 echo ""
-echo ">>> [4/4] Starting Frontend on Port 3000..."
+echo ">>> [4/4] Starting Frontend on Port 3000 (DEV MODE)..."
 cd finsight-frontend
-npm start &
+npm run dev > frontend.log 2>&1 &
 FRONTEND_PID=$!
+
+# Wait for frontend to start (check port 3000)
+echo ">>> Waiting for frontend to initialize on port 3000..."
+COUNT=0
+while ! lsof -i :3000 >/dev/null && [ $COUNT -lt 15 ]; do
+    sleep 2
+    COUNT=$((COUNT+1))
+done
+
+if ! lsof -i :3000 >/dev/null; then
+    echo "❌ Error: Frontend failed to start. Check finsight-frontend/frontend.log"
+    # If frontend fails, clean up backend too
+    kill $BACKEND_PID 2>/dev/null || true
+    exit 1
+fi
+echo "✅ Frontend successfully started on port 3000."
 cd ..
 
 echo ""

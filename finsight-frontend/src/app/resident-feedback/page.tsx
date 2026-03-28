@@ -2,199 +2,203 @@
 
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
-import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid 
+import {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, Tooltip,
 } from "recharts";
-import { 
-  Clipboard, QrCode, RefreshCw, Star, 
-  TrendingUp, MessageSquare, AlertCircle, CheckCircle2,
-  HardDrive, Zap, ShieldCheck, HeartPulse, Code2, Layers
+import {
+  RefreshCw, Star, MessageSquare, AlertCircle, CheckCircle2,
+  Zap, ShieldCheck, Link2, HardDrive, Settings,
 } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Survey {
   id: number;
   formUrl: string;
-  quarter: string;
-  year: number;
+  label: string;
   status: string;
 }
 
-interface Insight {
+interface McActionItem {
   id: number;
+  priority: "HIGH" | "MEDIUM" | "LOW";
   facility: string;
-  sentimentScore: number;
-  aiSummary: string;
-  recommendations: string;
+  action: string;
+  timeline: string;
+  expectedOutcome: string;
+  status: "TODO" | "IN_PROGRESS" | "DONE" | "NOT_FEASIBLE";
 }
 
 interface DashboardData {
   totalResponses: number;
   averageRatings: Record<string, number>;
-  insights: Insight[];
-  executiveSummary?: string;
+  mcActionPlan: McActionItem[];
+  label?: string;
+  formUrl?: string;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const priorityStyle: Record<string, string> = {
+  HIGH:   "bg-error/10 text-error border-error/20",
+  MEDIUM: "bg-warning/10 text-warning border-warning/20",
+  LOW:    "bg-success/10 text-success border-success/20",
+};
+
+const statusStyle: Record<string, string> = {
+  TODO:        "bg-base-content/5 text-base-content/40 border-base-content/10",
+  IN_PROGRESS: "bg-info/10 text-info border-info/20",
+  DONE:        "bg-success/10 text-success border-success/20",
+  NOT_FEASIBLE: "bg-error/10 text-error border-error/20",
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function ResidentFeedbackDashboard() {
-  const [activeTab, setActiveTab] = useState("insights");
+  const [activeTab, setActiveTab] = useState<"insights" | "connect" | "config">("insights");
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  
-  // Create Survey Form State
-  const [quarter, setQuarter] = useState("Q1");
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [creating, setCreating] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
-  // General Feedback Form State
-  const [feedbackType, setFeedbackType] = useState("GENERAL");
-  const [feedbackMsg, setFeedbackMsg] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  // Connect form state
+  const [formId, setFormId] = useState("");
+  const [label, setLabel]   = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connectSuccess, setConnectSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSurvey();
-  }, []);
+  useEffect(() => { loadSurvey(); }, []);
 
-  const fetchSurvey = async () => {
+  const loadSurvey = async () => {
+    setLoading(true);
     try {
       const res = await apiFetch("/survey/current?tenantId=local_tenant");
-      const currentSurvey = await res.json();
-      if (currentSurvey && currentSurvey.id) {
-        setSurvey(currentSurvey);
-        fetchDashboard(currentSurvey.id);
+      const s = await res.json();
+      if (s?.id) {
+        setSurvey(s);
+        await loadDashboard(s.id);
       } else {
         setSurvey(null);
-        setLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to fetch survey:", err);
-      setSurvey(null);
-      setLoading(false);
-    }
+    } catch { setSurvey(null); }
+    finally { setLoading(false); }
   };
 
-  const fetchDashboard = async (surveyId: number) => {
-    try {
-      const res = await apiFetch(`/survey/dashboard?surveyId=${surveyId}`);
-      const dashboardData = await res.json();
-      setData(dashboardData);
-    } catch (err) {
-      console.error("Failed to fetch dashboard:", err);
-    } finally {
-      setLoading(false);
-    }
+  const loadDashboard = async (surveyId: number) => {
+    const res = await apiFetch(`/survey/dashboard?surveyId=${surveyId}`);
+    const d = await res.json();
+    setData(d);
   };
 
-  const handleCreateSurvey = async (e: React.FormEvent) => {
+  const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
+    setConnecting(true);
+    setConnectError(null);
+    setConnectSuccess(null);
     try {
-      const res = await apiFetch(`/survey/create?tenantId=local_tenant&quarter=${quarter}&year=${year}`, {
-        method: "POST"
-      });
+      const params = new URLSearchParams({ tenantId: "local_tenant", formId });
+      if (label) params.set("label", label);
+      const res = await apiFetch(`/survey/connect?${params}`, { method: "POST" });
       if (res.ok) {
         const newSurvey = await res.json();
         setSurvey(newSurvey);
-        fetchDashboard(newSurvey.id);
+        await loadDashboard(newSurvey.id);
+        setConnectSuccess("Google Form connected successfully! Click 'Sync & Analyse' to generate the MC Action Plan.");
         setActiveTab("insights");
-        alert("Survey created successfully and connected to Google Forms!");
+        setFormId("");
+        setLabel("");
+      } else {
+        const txt = await res.text();
+        let msg = "Connection failed.";
+        try { msg = JSON.parse(txt).message || msg; } catch { msg = txt || msg; }
+        setConnectError(msg);
       }
-    } catch (err) {
-      console.error("Survey creation failed:", err);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleSubmitFeedback = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const res = await apiFetch("/feedback/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          type: feedbackType,
-          message: feedbackMsg,
-          userEmail: userEmail,
-          tenantId: "local_tenant"
-        })
-      });
-      if (res.ok) {
-        setFeedbackMsg("");
-        setUserEmail("");
-        alert("Feedback submitted. Thank you for helping us improve!");
-      }
-    } catch (err) {
-      console.error("Feedback submission failed:", err);
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { setConnectError("Network error — is the backend running?"); }
+    finally { setConnecting(false); }
   };
 
   const syncNow = async () => {
     if (!survey) return;
     setSyncing(true);
+    setSyncMsg(null);
     try {
-      await apiFetch(`/survey/sync?surveyId=${survey.id}`, { method: "POST" });
-      await fetchDashboard(survey.id);
+      const res = await apiFetch(`/survey/sync?surveyId=${survey.id}`, { method: "POST" });
+      const result = await res.json();
+      await loadDashboard(survey.id);
+      setSyncMsg(result.message || "Sync complete.");
+    } catch { setSyncMsg("Sync failed."); }
+    finally { setSyncing(false); }
+  };
+
+  const updateActionStatus = async (itemId: number, newStatus: string) => {
+    try {
+      const res = await apiFetch(`/survey/action-items/${itemId}?status=${newStatus}`, {
+        method: "PATCH",
+      });
+      if (res.ok) {
+        // Optimistic UI or just reload
+        if (survey) loadDashboard(survey.id);
+      }
     } catch (err) {
-      console.error("Sync failed:", err);
-    } finally {
-      setSyncing(false);
+      console.error("Failed to update status", err);
     }
   };
 
-  const copyLink = () => {
-    if (survey?.formUrl) {
-      navigator.clipboard.writeText(survey.formUrl);
-      alert("Survey link copied to clipboard!");
-    }
-  };
+  // ── Radar data ──
+  const radarData = data
+    ? Object.entries(data.averageRatings).map(([subject, value]) => ({
+        subject: subject.split(" ").slice(0, 2).join(" "),
+        fullSubject: subject,
+        A: value,
+        fullMark: 5,
+      }))
+    : [];
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const avgRating = radarData.length
+    ? (radarData.reduce((acc, cur) => acc + cur.A, 0) / radarData.length).toFixed(1)
+    : "–";
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
       <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-base-content/60 animate-pulse">Initializing Financial Watchdog Dashboard...</p>
+      <p className="text-base-content/60 animate-pulse">Loading Feedback Hub…</p>
     </div>
   );
 
-  // Format data for Radar Chart
-  const radarData = data ? Object.entries(data.averageRatings).map(([subject, value]) => ({
-    subject: subject.split(' ').slice(0, 2).join(' '), // Shorten labels
-    fullSubject: subject,
-    A: value,
-    fullMark: 5,
-  })) : [];
-
   return (
-    <div className="container mx-auto py-10 px-4 max-w-7xl print:bg-base-100 print:p-0">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 print:hidden">
-        <div>
-          <div className="flex items-center gap-2 text-primary font-bold mb-2">
-            <Zap className="h-5 w-5" />
-            <span>AI-POWERED INTELLIGENCE</span>
+    <div className="container mx-auto py-10 px-4 max-w-7xl animate-fade-in">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+        <div className="flex items-center gap-6">
+          <div className="p-4 bg-primary/10 rounded-3xl">
+            <MessageSquare className="h-12 w-12 text-primary" />
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Resident Feedback Hub</h1>
-          <p className="text-base-content/60 mt-1">Management, Insights & Community Satisfaction</p>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight">Resident Feedback Hub</h1>
+            <p className="text-base-content/40 font-bold uppercase tracking-[0.2em] text-[10px] mt-1 flex items-center gap-2">
+              <Zap className="h-3 w-3 text-primary animate-pulse" /> Gemini AI · MC Action Plan Generator
+            </p>
+          </div>
         </div>
 
-        <div className="flex p-1 bg-base-300 rounded-xl gap-1">
-          {[
-            { id: "insights", label: "Insights", icon: TrendingUp },
-            { id: "management", label: "Management", icon: Clipboard },
-            { id: "bug", label: "Report Issue", icon: AlertCircle },
-          ].map((tab) => (
+        {/* ── Tabs ── */}
+        <div className="flex p-1.5 bg-base-300/50 backdrop-blur-xl rounded-[2rem] border border-base-content/5 shadow-inner">
+          {([
+            { id: "insights", label: "Dashboard",     icon: Star     },
+            { id: "connect",  label: "Connect Form",  icon: Link2    },
+            { id: "config",   label: "Configuration", icon: Settings },
+          ] as const).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.id ? "bg-base-100 shadow-sm text-base-content" : "text-base-content/60 hover:text-base-content"
+              className={`flex items-center gap-3 px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${
+                activeTab === tab.id
+                  ? "bg-base-100 shadow-xl text-primary"
+                  : "text-base-content/40 hover:text-base-content hover:bg-base-100/30"
               }`}
             >
               <tab.icon className="h-4 w-4" />
@@ -204,136 +208,203 @@ export default function ResidentFeedbackDashboard() {
         </div>
       </div>
 
-      {/* Print Header (Only visible when printing) */}
-      <div className="hidden print:block mb-8 border-b pb-4">
-        <h1 className="text-3xl font-bold">Resident Satisfaction Report</h1>
-        <p className="text-base-content/60">{survey?.quarter} {survey?.year} - FinSight Operational Audit</p>
-      </div>
-
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: DASHBOARD
+      ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "insights" && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+          {connectSuccess && (
+            <div className="mb-6 p-4 rounded-2xl bg-success/10 border border-success/20 flex gap-3 items-center">
+              <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+              <p className="text-sm font-bold text-success">{connectSuccess}</p>
+            </div>
+          )}
+
           {!survey ? (
-             <div className="text-center py-20 border-2 border-dashed rounded-3xl bg-base-300/20 print:hidden">
-                <AlertCircle className="h-12 w-12 text-base-content/60 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold">No Active Survey</h2>
-                <p className="text-base-content/60 mt-2 mb-6">Create a new survey in the Management tab to start collecting feedback.</p>
-                <button 
-                  onClick={() => setActiveTab("management")}
-                  className="px-6 py-2.5 bg-primary text-primary-content rounded-xl font-bold shadow-lg shadow-primary/20"
-                >
-                  Create Survey Now
-                </button>
-             </div>
+            <div className="text-center py-20 border-2 border-dashed rounded-3xl bg-base-300/20">
+              <AlertCircle className="h-12 w-12 text-base-content/40 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold">No Connected Survey</h2>
+              <p className="text-base-content/60 mt-2 mb-6">
+                Go to the <strong>Connect Form</strong> tab to link your Google Form.
+              </p>
+              <button
+                onClick={() => setActiveTab("connect")}
+                className="px-6 py-2.5 bg-primary text-primary-content rounded-xl font-bold shadow-lg shadow-primary/20"
+              >
+                Connect a Google Form
+              </button>
+            </div>
           ) : (
             <>
-              <div className="flex justify-between items-center mb-10 bg-primary/5 p-6 rounded-2xl border border-primary/10 print:bg-base-100 print:border-none print:px-0">
+              {/* Survey header bar */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 glass-panel p-8 rounded-[2.5rem] shadow-xl border-primary/10 gap-6">
                 <div>
-                   <h2 className="text-xl font-bold">Audit Period: {survey.quarter} {survey.year}</h2>
-                   <p className="text-sm text-base-content/60">Generated by Gemini AI on {new Date().toLocaleDateString()}</p>
-                </div>
-                <div className="flex gap-3 print:hidden">
-                  <button onClick={syncNow} disabled={syncing} className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-xl font-medium">
-                    <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-                    Sync
-                  </button>
-                  <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-content rounded-xl font-medium shadow-lg shadow-primary/20">
-                    <HardDrive className="h-4 w-4" />
-                    Save Report
-                  </button>
-                </div>
-              </div>
-
-              {/* New Executive Summary Section */}
-              {data?.executiveSummary && (
-                <div className="mb-10 p-8 rounded-3xl border-2 border-primary/30 bg-primary/5 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 opacity-10"><ShieldCheck className="h-24 w-24" /></div>
-                  <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                    <Star className="h-6 w-6 text-primary fill-primary" /> Executive Board Summary
+                  <h2 className="text-2xl font-black uppercase tracking-tighter">
+                    {survey.label || "Resident Survey"}
                   </h2>
-                  <div className="prose prose-sm max-w-none text-base-content leading-relaxed">
-                    {data.executiveSummary.split('\n').map((para: string, i: number) => (
-                      <p key={i} className="mb-4">{para}</p>
-                    ))}
-                  </div>
+                  <a href={survey.formUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-primary underline mt-1 block">
+                    View Google Form ↗
+                  </a>
                 </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 print:grid-cols-3">
-                <div className="p-6 rounded-2xl border bg-base-200/50 shadow-sm flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-info/10 flex items-center justify-center text-info">
-                    <MessageSquare className="h-6 w-6" />
+                <div className="flex flex-col gap-3 items-end">
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setActiveTab("connect")}
+                      className="btn btn-ghost h-12 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-base-content/10 flex items-center gap-2 hover:bg-base-content/5"
+                    >
+                      <Link2 className="h-4 w-4" />
+                      Connect Different Survey
+                    </button>
+                    <button
+                      onClick={syncNow}
+                      disabled={syncing}
+                      className="btn btn-primary h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 flex items-center gap-2"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                      {syncing ? "Syncing…" : "Sync & Analyse"}
+                    </button>
                   </div>
-                  <div>
-                    <div className="text-2xl font-bold">{data?.totalResponses || 0}</div>
-                    <div className="text-sm text-base-content/60">Total Responses</div>
-                  </div>
-                </div>
-                <div className="p-6 rounded-2xl border bg-base-200/50 shadow-sm flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center text-success">
-                    <Star className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">
-                      {radarData.length > 0 ? (radarData.reduce((acc: number, curr: any) => acc + curr.A, 0) / radarData.length).toFixed(1) : "0.0"}
-                    </div>
-                    <div className="text-sm text-base-content/60">Satisfaction Score</div>
-                  </div>
-                </div>
-                <div className="p-6 rounded-2xl border bg-base-200/50 shadow-sm flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center text-warning">
-                    <TrendingUp className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">AI Audited</div>
-                    <div className="text-sm text-base-content/60">Verification Status</div>
-                  </div>
+                  {syncMsg && (
+                    <p className="text-xs text-success font-bold animate-pulse">{syncMsg}</p>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 print:block">
-                <div className="p-8 rounded-3xl border bg-base-200 shadow-lg relative overflow-hidden print:mb-8 print:shadow-none">
-                  <div className="absolute top-0 right-0 p-8 opacity-5"><HeartPulse className="h-32 w-32" /></div>
-                  <h2 className="text-xl font-bold mb-6 flex items-center gap-2">Facility Satisfaction Matrix</h2>
+              {/* Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <StatCard icon={MessageSquare} value={data?.totalResponses ?? 0}
+                  label="Responses Collected" colorClass="text-primary" bgClass="bg-primary/10" />
+                <StatCard icon={Star} value={avgRating}
+                  label="Avg Satisfaction Rating" colorClass="text-success" bgClass="bg-success/10" />
+                <StatCard icon={ShieldCheck}
+                  value={data?.mcActionPlan?.length ?? 0}
+                  label="MC Action Items" colorClass="text-warning" bgClass="bg-warning/10" />
+              </div>
+
+              {/* Radar + Action Plan */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+                {/* Radar chart */}
+                <div className="glass-panel p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+                  <h2 className="text-2xl font-black mb-10 uppercase tracking-tight">
+                    Satisfaction Radar
+                  </h2>
                   <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                        <PolarGrid stroke="hsl(var(--muted-foreground))" strokeOpacity={0.1} />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
-                        <Radar name="Satisfaction" dataKey="A" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.6} />
-                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))" }} />
+                      <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                        <PolarGrid stroke="rgba(255,255,255,0.05)" />
+                        <PolarAngleAxis dataKey="subject"
+                          tick={{ fill: "currentColor", fontSize: 10, fontWeight: 900 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 5]}
+                          tick={{ fill: "currentColor", fontSize: 10, opacity: 0.3 }} />
+                        <Radar name="Satisfaction" dataKey="A"
+                          stroke="var(--color-primary)" fill="var(--color-primary)" fillOpacity={0.4} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "rgba(0,0,0,0.8)", borderRadius: "16px",
+                            border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(10px)"
+                          }}
+                          formatter={(v: any) => [`${Number(v).toFixed(1)} / 5`, "Avg Rating"]}
+                        />
                       </RadarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
 
-                <div className="p-6 rounded-3xl border bg-primary/5 border-primary/10 shadow-lg relative h-full print:shadow-none print:border-indigo-100">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                       <CheckCircle2 className="h-5 w-5 text-primary" /> Operational Action Items
+                {/* MC Action Plan */}
+                <div className="glass-panel p-10 rounded-[3rem] shadow-2xl overflow-hidden">
+                  <div className="flex items-center justify-between mb-8 pb-6 border-b border-base-content/5">
+                    <h2 className="text-2xl font-black flex items-center gap-3 uppercase tracking-tight">
+                      <CheckCircle2 className="h-7 w-7 text-primary" /> MC Action Plan
                     </h2>
-                    <span className="text-[10px] font-bold bg-primary/20 text-indigo-600 px-2 py-1 rounded-full uppercase print:hidden">Gemini Insight Engine</span>
+                    <span className="text-[10px] font-black bg-primary/10 text-primary px-4 py-2 rounded-full uppercase tracking-widest border border-primary/10">
+                      Gemini AI
+                    </span>
                   </div>
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-hide print:max-h-none print:overflow-visible">
-                    {data?.insights.map((insight, idx) => (
-                      <div key={idx} className="p-5 rounded-2xl bg-base-100/50 border hover:border-primary/30 transition-all group print:mb-4 print:break-inside-avoid">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-bold flex items-center gap-2">
-                            <div className={`h-2 w-2 rounded-full ${insight.sentimentScore > 0.7 ? "bg-success" : insight.sentimentScore > 0.4 ? "bg-warning" : "bg-rose-500"}`}></div>
-                            {insight.facility}
-                          </h3>
-                          <span className="text-xs font-mono font-bold text-base-content/60">{(insight.sentimentScore * 100).toFixed(0)}% Mood Score</span>
-                        </div>
-                        <p className="text-sm text-base-content/60 mb-3 leading-relaxed">{insight.aiSummary}</p>
-                        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-sm text-indigo-700 font-medium">
-                          <div className="flex items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider text-primary">
-                            <Zap className="h-3 w-3" /> Recommended Action
+
+                  {(!data?.mcActionPlan || data.mcActionPlan.length === 0) ? (
+                    <div className="text-center py-12 text-base-content/40">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-3" />
+                      <p className="text-sm font-bold">No Action Plan yet.</p>
+                      <p className="text-xs mt-1">Click <strong>Sync & Analyse</strong> to generate.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
+                      {data.mcActionPlan.map((item, idx) => (
+                        <div key={idx}
+                          className={`p-6 rounded-3xl border transition-all ${
+                            item.status === 'DONE' ? 'bg-success/5 border-success/20 opacity-70' : 'bg-base-100/30 border-base-content/5 hover:border-primary/20'
+                          }`}>
+                          <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                              <h3 className={`font-black text-sm tracking-tight ${item.status === 'DONE' ? 'line-through' : ''}`}>
+                                {item.facility}
+                              </h3>
+                              <div className="flex gap-2 mt-2">
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border uppercase ${priorityStyle[item.priority]}`}>
+                                  {item.priority}
+                                </span>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border uppercase ${statusStyle[item.status]}`}>
+                                  {item.status.replace('_', ' ')}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Status Toggle Actions */}
+                            <div className="flex gap-1">
+                              {item.status !== 'DONE' && (
+                                <button 
+                                  onClick={() => updateActionStatus(item.id, 'DONE')}
+                                  className="p-2 hover:bg-success/20 rounded-xl text-success transition-colors"
+                                  title="Mark as Done"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </button>
+                              )}
+                              {item.status === 'TODO' && (
+                                <button 
+                                  onClick={() => updateActionStatus(item.id, 'IN_PROGRESS')}
+                                  className="p-2 hover:bg-info/20 rounded-xl text-info transition-colors"
+                                  title="Start Working"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </button>
+                              )}
+                              {item.status !== 'NOT_FEASIBLE' && item.status !== 'DONE' && (
+                                <button 
+                                  onClick={() => updateActionStatus(item.id, 'NOT_FEASIBLE')}
+                                  className="p-2 hover:bg-error/20 rounded-xl text-error transition-colors"
+                                  title="Mark Not Feasible"
+                                >
+                                  <AlertCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {item.status !== 'TODO' && (
+                                <button 
+                                  onClick={() => updateActionStatus(item.id, 'TODO')}
+                                  className="p-2 hover:bg-base-content/10 rounded-xl text-base-content/40 transition-colors"
+                                  title="Reset to Todo"
+                                >
+                                  <RefreshCw className="h-4 w-4 rotate-180" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {insight.recommendations}
+                          
+                          <p className={`text-sm leading-relaxed mb-4 ${item.status === 'DONE' ? 'text-base-content/40' : 'text-base-content/70'}`}>
+                            {item.action}
+                          </p>
+                          
+                          <div className="flex flex-wrap gap-4 text-[10px] text-base-content/40 font-bold border-t border-base-content/5 pt-4">
+                            <span className="flex items-center gap-1.5"><RefreshCw className="h-3 w-3" /> {item.timeline}</span>
+                            <span className="flex-1 flex items-center gap-1.5"><ShieldCheck className="h-3 w-3" /> {item.expectedOutcome}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -341,122 +412,145 @@ export default function ResidentFeedbackDashboard() {
         </div>
       )}
 
-      {activeTab === "management" && (
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: CONNECT FORM
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "connect" && (
         <div className="max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-           <div className="p-8 rounded-3xl border bg-base-200 shadow-xl">
-             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-               <QrCode className="h-6 w-6 text-primary" /> Create Quarterly Survey
-             </h2>
-             <p className="text-base-content/60 mb-8">This will automatically generate a new Google Form and archive any existing active survey for this association.</p>
-             
-             <form onSubmit={handleCreateSurvey} className="space-y-6">
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <label className="text-sm font-medium">Quarter</label>
-                   <select 
-                     value={quarter}
-                     onChange={(e) => setQuarter(e.target.value)}
-                     className="w-full p-3 rounded-xl bg-base-300 border-none focus:ring-2 ring-primary/20 transition-all font-medium"
-                   >
-                     <option>Q1</option>
-                     <option>Q2</option>
-                     <option>Q3</option>
-                     <option>Q4</option>
-                   </select>
-                 </div>
-                 <div className="space-y-2">
-                   <label className="text-sm font-medium">Year</label>
-                   <input 
-                     type="number"
-                     value={year}
-                     onChange={(e) => setYear(Number(e.target.value))}
-                     className="w-full p-3 rounded-xl bg-base-300 border-none focus:ring-2 ring-primary/20 transition-all font-medium"
-                   />
-                 </div>
-               </div>
-               
-               <div className="p-6 rounded-2xl bg-warning/5 border border-amber-500/10 flex gap-4">
-                  <ShieldCheck className="h-6 w-6 text-warning shrink-0" />
-                  <p className="text-xs text-amber-700/80 leading-relaxed">
-                    <strong>Note:</strong> Creating a survey requires the Google Workspace Service Account JSON to be configured in Settings. The form will include automated questions for all primary facilities.
-                  </p>
-               </div>
+          <div className="p-8 rounded-3xl border bg-base-200 shadow-xl">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+              <Link2 className="h-6 w-6 text-primary" /> Connect Google Form
+            </h2>
+            <p className="text-base-content/60 mb-8 text-sm leading-relaxed">
+              Create your survey on <strong>Google Forms</strong> and paste the Form ID here.
+              The platform will fetch responses and generate an AI-powered MC Action Plan.
+            </p>
 
-               <button 
-                 type="submit" 
-                 disabled={creating}
-                 className="w-full py-4 bg-primary text-primary-content rounded-xl font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all flex items-center justify-center gap-2"
-               >
-                 {creating ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Layers className="h-5 w-5" />}
-                 {creating ? "Generating Form..." : "Generate Google Form & Connect"}
-               </button>
-             </form>
-           </div>
+            <form onSubmit={handleConnect} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-bold">Google Form ID <span className="text-error">*</span></label>
+                <input
+                  id="form-id-input"
+                  type="text"
+                  required
+                  value={formId}
+                  onChange={(e) => setFormId(e.target.value.trim())}
+                  placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+                  className="w-full p-3 rounded-xl bg-base-300 border-none focus:ring-2 ring-primary/20 transition-all font-mono text-sm"
+                />
+                <p className="text-[11px] text-base-content/40">
+                  Find in the form URL: <code>docs.google.com/forms/d/<strong>[FORM_ID]</strong>/edit</code>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold">Survey Label <span className="text-base-content/40">(optional)</span></label>
+                <input
+                  id="survey-label-input"
+                  type="text"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g. Q1 2026 Resident Feedback"
+                  className="w-full p-3 rounded-xl bg-base-300 border-none focus:ring-2 ring-primary/20 transition-all font-medium"
+                />
+              </div>
+
+              <div className="p-5 rounded-2xl bg-warning/5 border border-amber-500/10 flex gap-4">
+                <ShieldCheck className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700/80 leading-relaxed">
+                  Ensure the <strong>Service Account</strong> (configured in Settings → Connectivity) has
+                  <strong> View access</strong> to the Google Form before connecting.
+                </p>
+              </div>
+
+              {connectError && (
+                <div className="p-4 rounded-2xl bg-error/10 border border-error/20 flex gap-3">
+                  <AlertCircle className="h-5 w-5 text-error shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-error">Connection Failed</p>
+                    <p className="text-xs text-error/70 mt-1">{connectError}</p>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={connecting}
+                className="w-full py-4 bg-primary text-primary-content rounded-xl font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all flex items-center justify-center gap-2"
+              >
+                {connecting
+                  ? <><RefreshCw className="h-5 w-5 animate-spin" /> Connecting…</>
+                  : <><Link2 className="h-5 w-5" /> Connect &amp; Activate Survey</>}
+              </button>
+            </form>
+
+            {survey && (
+              <div className="mt-6 p-4 rounded-2xl bg-success/10 border border-success/20">
+                <p className="text-sm font-bold text-success flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> Currently connected: {survey.label || "Active Survey"}
+                </p>
+                <a href={survey.formUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-primary underline mt-1 block">View live form ↗</a>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {activeTab === "bug" && (
-        <div className="max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-           <div className="p-8 rounded-3xl border bg-base-200 shadow-xl">
-             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-               <AlertCircle className="h-6 w-6 text-destructive" /> Issue Tracking & Suggestions
-             </h2>
-             <p className="text-base-content/60 mb-8">Submit bug reports or suggest new features for the FinSight platform. Your feedback is stored directly and reviewed by the audit team.</p>
-             
-             <form onSubmit={handleSubmitFeedback} className="space-y-6">
-               <div className="space-y-2">
-                 <label className="text-sm font-medium">Email Address (Optional)</label>
-                 <input 
-                   type="email"
-                   placeholder="resident@complex.com"
-                   value={userEmail}
-                   onChange={(e) => setUserEmail(e.target.value)}
-                   className="w-full p-3 rounded-xl bg-base-300 border-none focus:ring-2 ring-primary/20 transition-all"
-                 />
-               </div>
-               
-               <div className="space-y-2">
-                 <label className="text-sm font-medium">Feedback Type</label>
-                 <div className="flex gap-2">
-                   {["BUG", "FEATURE", "GENERAL"].map((t) => (
-                     <button
-                       key={t}
-                       type="button"
-                       onClick={() => setFeedbackType(t)}
-                       className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
-                         feedbackType === t ? "bg-primary border-primary text-primary-content" : "bg-base-300 border-transparent text-base-content/60"
-                       }`}
-                     >
-                       {t}
-                     </button>
-                   ))}
-                 </div>
-               </div>
-
-               <div className="space-y-2">
-                 <label className="text-sm font-medium">Message</label>
-                 <textarea 
-                   rows={5}
-                   required
-                   value={feedbackMsg}
-                   onChange={(e) => setFeedbackMsg(e.target.value)}
-                   placeholder="Describe the issue or your suggestion in detail..."
-                   className="w-full p-4 rounded-xl bg-base-300 border-none focus:ring-2 ring-primary/20 transition-all resize-none"
-                 />
-               </div>
-
-               <button 
-                 type="submit" 
-                 disabled={submitting}
-                 className="w-full py-4 bg-foreground text-background rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
-               >
-                 {submitting ? <RefreshCw className="h-5 w-5 animate-spin" /> : <MessageSquare className="h-5 w-5" />}
-                 {submitting ? "Submitting..." : "Send Feedback"}
-               </button>
-             </form>
-           </div>
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB: CONFIGURATION
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "config" && (
+        <div className="max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-500 space-y-6">
+          <div className="p-8 rounded-3xl border bg-base-200 shadow-xl">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Settings className="h-6 w-6 text-primary" /> System Configuration
+            </h2>
+            <div className="space-y-4">
+              {[
+                { icon: HardDrive, label: "Google Forms API (Response Ingestion)", status: "CONNECTED",  color: "success" },
+                { icon: Zap,       label: "Gemini AI — MC Action Plan",            status: "ENABLED",    color: "success" },
+                { icon: RefreshCw, label: "Auto Sync Scheduler",                   status: "HOURLY",     color: "success" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-base-300/50 border border-base-content/5">
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-bold">{item.label}</span>
+                  </div>
+                  <span className={`text-xs font-black px-3 py-1 rounded-full bg-${item.color}/10 text-${item.color} border border-${item.color}/20`}>
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 p-5 rounded-2xl bg-warning/5 border border-amber-500/10">
+              <p className="text-xs text-amber-700/80 leading-relaxed">
+                <strong>Service Account JSON</strong> and <strong>Gemini API Key</strong> must be configured in{" "}
+                <a href="/settings" className="text-primary underline font-bold">Settings → Connectivity</a>.
+              </p>
+            </div>
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Sub-Components ───────────────────────────────────────────────────────────
+
+function StatCard({ icon: Icon, value, label, colorClass, bgClass }: {
+  icon: React.ElementType; value: number | string;
+  label: string; colorClass: string; bgClass: string;
+}) {
+  return (
+    <div className="glass-panel p-8 rounded-[2rem] shadow-lg flex items-center gap-6 group hover:glow-primary transition-all">
+      <div className={`h-16 w-16 rounded-2xl ${bgClass} flex items-center justify-center ${colorClass} shadow-inner`}>
+        <Icon className="h-8 w-8" />
+      </div>
+      <div>
+        <div className="text-4xl font-black font-mono tracking-tighter">{value}</div>
+        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/30 mt-1">{label}</div>
+      </div>
     </div>
   );
 }
