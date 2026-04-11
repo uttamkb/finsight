@@ -45,6 +45,14 @@ interface AuditTrail {
   description: string;
   issueDescription?: string;
   resolved: boolean;
+  amountScore?: number;
+  dateScore?: number;
+  vendorScore?: number;
+  amountReasoning?: string;
+  dateReasoning?: string;
+  vendorReasoning?: string;
+  similarityScore?: number;
+  matchType?: string;
 }
 
 export default function StatementsPage() {
@@ -57,19 +65,19 @@ export default function StatementsPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [currency, setCurrency] = useState("INR");
-  
+
   const [activeTab, setActiveTab] = useState<"transactions" | "issues" | "history">("transactions");
   const [audits, setAudits] = useState<AuditTrail[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [uploads, setUploads] = useState<any[]>([]);
   const [isFetchingUploads, setIsFetchingUploads] = useState(false);
   const [selectedReceiptId, setSelectedReceiptId] = useState<Record<number, string>>({});
-  
+
   // Edit Txn State
   const [editingTxn, setEditingTxn] = useState<BankTransaction | null>(null);
   const [editForm, setEditForm] = useState({ amount: 0, vendor: "", txDate: "", description: "", type: "DEBIT" });
   const [isSavingTxn, setIsSavingTxn] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
@@ -139,9 +147,9 @@ export default function StatementsPage() {
         setUploads(data || []);
       }
     } catch (error) {
-        console.error("Failed to fetch uploads:", error);
+      console.error("Failed to fetch uploads:", error);
     } finally {
-        setIsFetchingUploads(false);
+      setIsFetchingUploads(false);
     }
   }, []);
 
@@ -165,7 +173,7 @@ export default function StatementsPage() {
         if (res.ok) {
           const data = await res.json();
           setUploadStatus(data);
-          
+
           if (data.status === "SUCCESS") {
             clearInterval(interval);
             setIsUploading(false);
@@ -173,16 +181,16 @@ export default function StatementsPage() {
             setPage(0);
             fetchTransactions();
             setTimeout(() => {
-                setUploadStatus(null);
-                setShowUploadStatus(false);
+              setUploadStatus(null);
+              setShowUploadStatus(false);
             }, 4000);
           } else if (data.status === "ERROR") {
             clearInterval(interval);
             setIsUploading(false);
             toast(`Upload failed: ${data.message}`, "error");
             setTimeout(() => {
-                setUploadStatus(null);
-                setShowUploadStatus(false);
+              setUploadStatus(null);
+              setShowUploadStatus(false);
             }, 5000);
           }
         }
@@ -269,13 +277,13 @@ export default function StatementsPage() {
     }
     try {
       const response = await apiFetch("/reconciliation/link", {
-        method: "POST", 
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transactionId: txnId, receiptId: Number(receiptId) })
       });
       if (response.ok) {
         toast("Successfully linked manually!", "success");
-        fetchAudits(); 
+        fetchAudits();
         fetchTransactions();
       } else {
         toast(await response.text(), "error");
@@ -347,9 +355,9 @@ export default function StatementsPage() {
     toast(`Approving ${selectedIds.size} transactions...`, "info");
     // Simulate bulk approval for UI purposes
     setTimeout(() => {
-        toast(`Successfully approved ${selectedIds.size} records.`, "success");
-        setSelectedIds(new Set());
-        fetchTransactions();
+      toast(`Successfully approved ${selectedIds.size} records.`, "success");
+      setSelectedIds(new Set());
+      fetchTransactions();
     }, 1000);
   };
 
@@ -360,17 +368,17 @@ export default function StatementsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    switch(status) {
-        case "AUTO_VALIDATED": return <span className="badge badge-success badge-sm border-none font-bold text-[9px]">AUTO_VALIDATED</span>;
-        case "USER_VERIFIED": return <span className="badge badge-primary badge-sm border-none font-bold text-[9px]">USER_VERIFIED</span>;
-        case "LOW_CONFIDENCE": return <span className="badge badge-error badge-sm border-none font-bold text-[9px]">LOW_CONFIDENCE</span>;
-        case "NEEDS_REVIEW": return <span className="badge badge-warning badge-sm border-none font-bold text-[9px]">NEEDS_REVIEW</span>;
-        case "COMPLETED": return <span className="badge badge-success badge-sm border-none font-bold text-[9px]">COMPLETED</span>;
-        case "PARTIAL_SUCCESS": return <span className="badge badge-warning badge-sm border-none font-bold text-[9px]">PARTIAL_SUCCESS</span>;
-        case "FAILED": return <span className="badge badge-error badge-sm border-none font-bold text-[9px]">FAILED</span>;
-        case "FAILED_PERMANENT": return <span className="badge badge-error badge-sm border-none font-black text-[9px] bg-red-900 text-white">DEAD_LETTER</span>;
-        case "PROCESSING": return <span className="badge badge-primary badge-sm animate-pulse border-none font-bold text-[9px]">PROCESSING</span>;
-        default: return <span className="badge badge-ghost badge-sm border-none font-bold text-[9px]">{status || 'PENDING'}</span>;
+    switch (status) {
+      case "AUTO_VALIDATED": return <span className="badge badge-success badge-sm border-none font-bold text-[9px]">AUTO_VALIDATED</span>;
+      case "USER_VERIFIED": return <span className="badge badge-primary badge-sm border-none font-bold text-[9px]">USER_VERIFIED</span>;
+      case "LOW_CONFIDENCE": return <span className="badge badge-error badge-sm border-none font-bold text-[9px]">LOW_CONFIDENCE</span>;
+      case "NEEDS_REVIEW": return <span className="badge badge-warning badge-sm border-none font-bold text-[9px]">NEEDS_REVIEW</span>;
+      case "COMPLETED": return <span className="badge badge-success badge-sm border-none font-bold text-[9px]">COMPLETED</span>;
+      case "PARTIAL_SUCCESS": return <span className="badge badge-warning badge-sm border-none font-bold text-[9px]">PARTIAL_SUCCESS</span>;
+      case "FAILED": return <span className="badge badge-error badge-sm border-none font-bold text-[9px]">FAILED</span>;
+      case "FAILED_PERMANENT": return <span className="badge badge-error badge-sm border-none font-black text-[9px] bg-red-900 text-white">DEAD_LETTER</span>;
+      case "PROCESSING": return <span className="badge badge-primary badge-sm animate-pulse border-none font-bold text-[9px]">PROCESSING</span>;
+      default: return <span className="badge badge-ghost badge-sm border-none font-bold text-[9px]">{status || 'PENDING'}</span>;
     }
   };
 
@@ -398,30 +406,30 @@ export default function StatementsPage() {
             onChange={handleFileUpload}
           />
           <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 mr-2">
-            <span className="text-[10px] font-bold text-base-content/60 uppercase tracking-widest whitespace-nowrap">Target Account:</span>
-            <select 
-              className="select select-sm select-primary font-bold bg-base-300/50 border-primary/30 focus:bg-base-300"
-              value={selectedAccountType}
-              onChange={(e) => setSelectedAccountType(e.target.value)}
+            <div className="flex items-center gap-2 mr-2">
+              <span className="text-[10px] font-bold text-base-content/60 uppercase tracking-widest whitespace-nowrap">Target Account:</span>
+              <select
+                className="select select-sm select-primary font-bold bg-base-300/50 border-primary/30 focus:bg-base-300"
+                value={selectedAccountType}
+                onChange={(e) => setSelectedAccountType(e.target.value)}
+                disabled={isUploading}
+              >
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="CORPUS">Corpus</option>
+                <option value="SINKING_FUND">Sinking Fund</option>
+              </select>
+            </div>
+
+            <button
+              className={`btn btn-secondary btn-sm h-10 px-6 gap-2 whitespace-nowrap font-bold shadow-lg shadow-secondary/10 transition-all active:scale-95 ${isUploading ? 'loading' : ''}`}
+              onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
             >
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="CORPUS">Corpus</option>
-              <option value="SINKING_FUND">Sinking Fund</option>
-            </select>
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              UPLOAD STATEMENT
+            </button>
           </div>
-          
-          <button 
-            className={`btn btn-secondary btn-sm h-10 px-6 gap-2 whitespace-nowrap font-bold shadow-lg shadow-secondary/10 transition-all active:scale-95 ${isUploading ? 'loading' : ''}`}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            UPLOAD STATEMENT
-          </button>
-          </div>
-          
+
           <button
             onClick={handleReconcile}
             disabled={isReconciling || isUploading}
@@ -436,7 +444,7 @@ export default function StatementsPage() {
       {showUploadStatus && uploadStatus && (
         <div className="mb-8 p-6 rounded-xl border bg-base-200 shadow-lg border-primary/30 animate-in fade-in slide-in-from-top-4">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-            
+
             <div className="flex-1 space-y-6">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 Statement Processing Pipeline
@@ -444,7 +452,7 @@ export default function StatementsPage() {
               </h3>
 
               <div className="relative pl-6 space-y-6 before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-muted before:to-transparent">
-                
+
                 {/* Stage 1: Initializing */}
                 <div className="relative flex items-center gap-4">
                   <div className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full border-2 bg-base-100 ${["INITIALIZING", "EXTRACTION", "PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? "border-primary text-primary" : "border-muted text-base-content/60"}`}>
@@ -475,13 +483,13 @@ export default function StatementsPage() {
                   </div>
                   <div className="flex-1">
                     <h4 className={`text-sm font-semibold ${["PERSISTENCE", "COMPLETED", "FAILED"].includes(uploadStatus.stage) ? (uploadStatus.status === "ERROR" ? "text-destructive" : "text-base-content") : "text-base-content/60"}`}>Database Verification</h4>
-                    
+
                     {uploadStatus.stage === "PERSISTENCE" && (
                       <div className="mt-2 space-y-2">
                         <p className="text-xs text-base-content/60 truncate">{uploadStatus.message}</p>
                         <div className="w-full bg-base-300 rounded-full h-1.5 overflow-hidden">
-                          <div 
-                            className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out" 
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out"
                             style={{ width: `${(uploadStatus.totalFiles > 0 ? (uploadStatus.processedFiles / uploadStatus.totalFiles) * 100 : 0)}%` }}
                           ></div>
                         </div>
@@ -507,13 +515,13 @@ export default function StatementsPage() {
                 </div>
               </div>
               {uploadStatus.status === "COMPLETED" && (
-                  <div className="mt-4 pt-3 border-t border-base-content/20/50 flex items-center justify-center gap-2 text-success">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span className="text-sm font-semibold">Upload Finished</span>
-                  </div>
+                <div className="mt-4 pt-3 border-t border-base-content/20/50 flex items-center justify-center gap-2 text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Upload Finished</span>
+                </div>
               )}
             </div>
-            
+
           </div>
         </div>
       )}
@@ -534,20 +542,20 @@ export default function StatementsPage() {
       </div>
 
       <div className="flex border-b border-base-content/10 mb-6 font-bold text-sm">
-        <button 
+        <button
           className={`px-6 py-3 transition-colors ${activeTab === 'transactions' ? 'border-b-4 border-primary text-primary' : 'text-base-content/60 hover:text-base-content'}`}
           onClick={() => setActiveTab('transactions')}
         >
           Transactions
         </button>
-        <button 
+        <button
           className={`px-6 py-3 transition-colors flex items-center gap-2 ${activeTab === 'issues' ? 'border-b-4 border-primary text-primary' : 'text-base-content/60 hover:text-base-content'}`}
           onClick={() => setActiveTab('issues')}
         >
           Issues & Discrepancies
           {audits.length > 0 && <span className="badge badge-error badge-sm font-black border-none text-[10px] px-2">{audits.length}</span>}
         </button>
-        <button 
+        <button
           className={`px-6 py-3 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-b-4 border-primary text-primary' : 'text-base-content/60 hover:text-base-content'}`}
           onClick={() => setActiveTab('history')}
         >
@@ -559,226 +567,226 @@ export default function StatementsPage() {
         {activeTab === 'transactions' ? (
           <div>
             <div className="p-4 border-b border-primary/10 flex flex-wrap items-center gap-4 bg-base-300/20">
-               <div className="flex items-center gap-2">
-                 <span className="text-[10px] font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap">Status:</span>
-                 <select 
-                    className="h-8 rounded-md border border-primary/20 bg-base-100 px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={filterStatus}
-                    onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
-                 >
-                   <option value="all">All Status</option>
-                   <option value="AUTO_VALIDATED">Auto Validated</option>
-                   <option value="NEEDS_REVIEW">Needs Review</option>
-                   <option value="USER_VERIFIED">User Verified</option>
-                 </select>
-               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap">Status:</span>
+                <select
+                  className="h-8 rounded-md border border-primary/20 bg-base-100 px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={filterStatus}
+                  onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="AUTO_VALIDATED">Auto Validated</option>
+                  <option value="NEEDS_REVIEW">Needs Review</option>
+                  <option value="USER_VERIFIED">User Verified</option>
+                </select>
+              </div>
 
-               <div className="flex items-center gap-2">
-                 <span className="text-[10px] font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap">Confidence:</span>
-                 <select 
-                    className="h-8 rounded-md border border-primary/20 bg-base-100 px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={filterConfidence}
-                    onChange={(e) => { setFilterConfidence(e.target.value); setPage(0); }}
-                 >
-                   <option value="all">All Confidence</option>
-                   <option value="high">High (&gt;90%)</option>
-                   <option value="medium">Medium (70-90%)</option>
-                   <option value="low">Low (&lt;70%)</option>
-                 </select>
-               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap">Confidence:</span>
+                <select
+                  className="h-8 rounded-md border border-primary/20 bg-base-100 px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={filterConfidence}
+                  onChange={(e) => { setFilterConfidence(e.target.value); setPage(0); }}
+                >
+                  <option value="all">All Confidence</option>
+                  <option value="high">High (&gt;90%)</option>
+                  <option value="medium">Medium (70-90%)</option>
+                  <option value="low">Low (&lt;70%)</option>
+                </select>
+              </div>
 
-               <div className="flex items-center gap-2">
-                 <span className="text-[10px] font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap">Sort:</span>
-                 <select 
-                    className="h-8 rounded-md border border-primary/20 bg-base-100 px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                 >
-                   <option value="date_desc">Latest First</option>
-                   <option value="amount_desc">Highest Amount</option>
-                   <option value="confidence_desc">Highest Confidence</option>
-                 </select>
-               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-base-content/50 uppercase tracking-widest whitespace-nowrap">Sort:</span>
+                <select
+                  className="h-8 rounded-md border border-primary/20 bg-base-100 px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="date_desc">Latest First</option>
+                  <option value="amount_desc">Highest Amount</option>
+                  <option value="confidence_desc">Highest Confidence</option>
+                </select>
+              </div>
 
-               {selectedIds.size > 0 && (
-                 <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2">
-                   <span className="text-xs font-bold text-primary">{selectedIds.size} Selected</span>
-                   <button 
-                     onClick={() => handleBulkAction("APPROVE")}
-                     className="btn btn-primary btn-xs font-bold"
-                   >
-                     BULK APPROVE
-                   </button>
-                   <button 
-                     onClick={() => setSelectedIds(new Set())}
-                     className="btn btn-ghost btn-xs font-bold"
-                   >
-                     CANCEL
-                   </button>
-                 </div>
-               )}
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-2 ml-auto animate-in fade-in slide-in-from-right-2">
+                  <span className="text-xs font-bold text-primary">{selectedIds.size} Selected</span>
+                  <button
+                    onClick={() => handleBulkAction("APPROVE")}
+                    className="btn btn-primary btn-xs font-bold"
+                  >
+                    BULK APPROVE
+                  </button>
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="btn btn-ghost btn-xs font-bold"
+                  >
+                    CANCEL
+                  </button>
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-[10px] text-base-content/70 uppercase tracking-widest bg-base-300">
-              <tr>
-                <th className="px-4 py-4">
-                  <input 
-                    type="checkbox" 
-                    className="checkbox checkbox-xs checkbox-primary"
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedIds(new Set(transactions.map(t => t.id)));
-                      else setSelectedIds(new Set());
-                    }}
-                  />
-                </th>
-                <th className="px-4 py-4 font-bold">Date</th>
-                <th className="px-4 py-4 font-bold">Description</th>
-                <th className="px-4 py-4 font-bold">Vendor</th>
-                <th className="px-4 py-4 font-bold text-right">Amount</th>
-                <th className="px-4 py-4 font-bold text-center">Confidence</th>
-                <th className="px-4 py-4 font-bold text-center">Status</th>
-                <th className="px-4 py-4 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-primary/5">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-base-content/60">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    Loading intelligence grid...
-                  </td>
-                </tr>
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-base-content/60">
-                    <AlertCircle className="h-6 w-6 mx-auto mb-2 opacity-50" />
-                    No bank transactions found. Upload a PDF statement.
-                  </td>
-                </tr>
-              ) : (
-                transactions.map((txn) => (
-                  <tr key={txn.id} className={`hover:bg-base-300/30 transition-colors group ${selectedIds.has(txn.id) ? 'bg-primary/10' : ''} ${(!txn.txDate || !txn.amount) ? 'bg-error/5' : ''}`}>
-                    <td className="px-4 py-4">
-                      <input 
-                        type="checkbox" 
+              <table className="w-full text-sm text-left">
+                <thead className="text-[10px] text-base-content/70 uppercase tracking-widest bg-base-300">
+                  <tr>
+                    <th className="px-4 py-4">
+                      <input
+                        type="checkbox"
                         className="checkbox checkbox-xs checkbox-primary"
-                        checked={selectedIds.has(txn.id)}
                         onChange={(e) => {
-                          const next = new Set(selectedIds);
-                          if (e.target.checked) next.add(txn.id);
-                          else next.delete(txn.id);
-                          setSelectedIds(next);
+                          if (e.target.checked) setSelectedIds(new Set(transactions.map(t => t.id)));
+                          else setSelectedIds(new Set());
                         }}
                       />
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-base-content/60">
-                      {txn.txDate || <span className="text-error font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> MISSING</span>}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="font-medium truncate max-w-[250px] relative group/reason" title={txn.description}>
-                        {txn.description}
-                        {txn.aiReasoning && (
-                            <div className="absolute left-0 bottom-full mb-2 hidden group-hover/reason:block z-50 p-3 bg-base-300 border border-primary/20 rounded-lg shadow-xl w-64 animate-in fade-in zoom-in-95">
+                    </th>
+                    <th className="px-4 py-4 font-bold">Date</th>
+                    <th className="px-4 py-4 font-bold">Description</th>
+                    <th className="px-4 py-4 font-bold">Vendor</th>
+                    <th className="px-4 py-4 font-bold text-right">Amount</th>
+                    <th className="px-4 py-4 font-bold text-center">Confidence</th>
+                    <th className="px-4 py-4 font-bold text-center">Status</th>
+                    <th className="px-4 py-4 font-bold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary/5">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-10 text-center text-base-content/60">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                        Loading intelligence grid...
+                      </td>
+                    </tr>
+                  ) : transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-10 text-center text-base-content/60">
+                        <AlertCircle className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                        No bank transactions found. Upload a PDF statement.
+                      </td>
+                    </tr>
+                  ) : (
+                    transactions.map((txn) => (
+                      <tr key={txn.id} className={`hover:bg-base-300/30 transition-colors group ${selectedIds.has(txn.id) ? 'bg-primary/10' : ''} ${(!txn.txDate || !txn.amount) ? 'bg-error/5' : ''}`}>
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            className="checkbox checkbox-xs checkbox-primary"
+                            checked={selectedIds.has(txn.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedIds);
+                              if (e.target.checked) next.add(txn.id);
+                              else next.delete(txn.id);
+                              setSelectedIds(next);
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-base-content/60">
+                          {txn.txDate || <span className="text-error font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> MISSING</span>}
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-medium truncate max-w-[250px] relative group/reason" title={txn.description}>
+                            {txn.description}
+                            {txn.aiReasoning && (
+                              <div className="absolute left-0 bottom-full mb-2 hidden group-hover/reason:block z-50 p-3 bg-base-300 border border-primary/20 rounded-lg shadow-xl w-64 animate-in fade-in zoom-in-95">
                                 <p className="text-[10px] font-bold text-primary uppercase mb-1">AI Reasoning</p>
                                 <p className="text-xs italic mb-2">"{txn.aiReasoning}"</p>
                                 <p className="text-[10px] font-bold text-base-content/50 uppercase mb-1">Source Snippet</p>
                                 <p className="text-[10px] font-mono bg-black/20 p-1 rounded">...{txn.originalSnippet || "N/A"}...</p>
-                            </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[10px] text-base-content/60 font-mono opacity-50">Ref: {txn.referenceNumber}</span>
-                        {txn.isDuplicate && <span className="badge badge-error badge-xs font-black text-[8px] tracking-tighter shadow-sm animate-pulse px-1">DUPLICATE SUSPECTED</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="font-medium text-primary/80">{txn.vendor || 'Unknown'}</span>
-                      {txn.category && (
-                        <div className="text-[9px] text-primary/60 font-medium uppercase mt-0.5">{txn.category.name}</div>
-                      )}
-                    </td>
-                    <td className={`px-4 py-4 whitespace-nowrap text-right font-mono font-black ${txn.type === 'DEBIT' ? 'text-error' : 'text-success'}`}>
-                       {txn.type === 'DEBIT' ? '-' : '+'}{formatCurrency(txn.amount, currency)}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                        <div className={`inline-flex items-center px-2 py-1 rounded border text-[10px] font-black ${getConfidenceColor(txn.confidenceScore || 95)}`}>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] text-base-content/60 font-mono opacity-50">Ref: {txn.referenceNumber}</span>
+                            {txn.isDuplicate && <span className="badge badge-error badge-xs font-black text-[8px] tracking-tighter shadow-sm animate-pulse px-1">DUPLICATE SUSPECTED</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="font-medium text-primary/80">{txn.vendor || 'Unknown'}</span>
+                          {txn.category && (
+                            <div className="text-[9px] text-primary/60 font-medium uppercase mt-0.5">{txn.category.name}</div>
+                          )}
+                        </td>
+                        <td className={`px-4 py-4 whitespace-nowrap text-right font-mono font-black ${txn.type === 'DEBIT' ? 'text-error' : 'text-success'}`}>
+                          {txn.type === 'DEBIT' ? '-' : '+'}{formatCurrency(txn.amount, currency)}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <div className={`inline-flex items-center px-2 py-1 rounded border text-[10px] font-black ${getConfidenceColor(txn.confidenceScore || 95)}`}>
                             {txn.confidenceScore || 95}%
-                        </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                       {getStatusBadge(txn.status || (txn.reconciled ? "AUTO_VALIDATED" : "NEEDS_REVIEW"))}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleBulkAction("APPROVE")}
-                          className="p-1.5 rounded-md hover:bg-success/20 text-success transition-colors"
-                          title="Approve extraction"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingTxn(txn);
-                            setEditForm({
-                              amount: txn.amount,
-                              vendor: txn.vendor || "",
-                              txDate: txn.txDate,
-                              description: txn.description,
-                              type: txn.type || "DEBIT"
-                            });
-                          }}
-                          className="p-1.5 rounded-md hover:bg-primary/20 text-primary transition-colors"
-                          title="Edit extraction"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => toast("Initiating AI reprocessing...", "info")}
-                          className="p-1.5 rounded-md hover:bg-warning/20 text-warning transition-colors"
-                          title="Reprocess with Gemini"
-                        >
-                          <Play className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => toast("Row marked for rejection", "error")}
-                          className="p-1.5 rounded-md hover:bg-error/20 text-error transition-colors"
-                          title="Reject"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                          {getStatusBadge(txn.status || (txn.reconciled ? "AUTO_VALIDATED" : "NEEDS_REVIEW"))}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleBulkAction("APPROVE")}
+                              className="p-1.5 rounded-md hover:bg-success/20 text-success transition-colors"
+                              title="Approve extraction"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingTxn(txn);
+                                setEditForm({
+                                  amount: txn.amount,
+                                  vendor: txn.vendor || "",
+                                  txDate: txn.txDate,
+                                  description: txn.description,
+                                  type: txn.type || "DEBIT"
+                                });
+                              }}
+                              className="p-1.5 rounded-md hover:bg-primary/20 text-primary transition-colors"
+                              title="Edit extraction"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => toast("Initiating AI reprocessing...", "info")}
+                              className="p-1.5 rounded-md hover:bg-warning/20 text-warning transition-colors"
+                              title="Reprocess with Gemini"
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => toast("Row marked for rejection", "error")}
+                              className="p-1.5 rounded-md hover:bg-error/20 text-error transition-colors"
+                              title="Reject"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {totalPages > 1 && (
+                <div className="p-4 border-t border-primary/10 flex items-center justify-between bg-base-300/10">
+                  <span className="text-sm text-base-content/60">Page {page + 1} of {totalPages}</span>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setPage(p => Math.max(0, p - 1))}
+                      disabled={page === 0}
+                      className="px-3 py-1 text-sm border bg-base-100 rounded-md shadow-sm disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1}
+                      className="px-3 py-1 text-sm border bg-base-100 rounded-md shadow-sm disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
-          
-          {totalPages > 1 && (
-            <div className="p-4 border-t border-primary/10 flex items-center justify-between bg-base-300/10">
-              <span className="text-sm text-base-content/60">Page {page + 1} of {totalPages}</span>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  className="px-3 py-1 text-sm border bg-base-100 rounded-md shadow-sm disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                  disabled={page >= totalPages - 1}
-                  className="px-3 py-1 text-sm border bg-base-100 rounded-md shadow-sm disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
             </div>
-          )}
-        </div>
-        </div>
+          </div>
         ) : activeTab === 'history' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -825,11 +833,11 @@ export default function StatementsPage() {
                       <td className="px-6 py-4">
                         <div className="flex flex-col items-center gap-1">
                           {up.avgConfidenceScore ? (
-                             <>
-                               <span className={`text-xs font-black ${getConfidenceColor(up.avgConfidenceScore * 100)}`}>{Math.round(up.avgConfidenceScore * 100)}% Confidence</span>
-                               <span className="text-[10px] text-base-content/50">Gemini Calls: {up.geminiCallsCount || 0}</span>
-                               <span className="text-[10px] text-base-content/50">Time: {(up.processingTimeMs / 1000).toFixed(1)}s</span>
-                             </>
+                            <>
+                              <span className={`text-xs font-black ${getConfidenceColor(up.avgConfidenceScore * 100)}`}>{Math.round(up.avgConfidenceScore * 100)}% Confidence</span>
+                              <span className="text-[10px] text-base-content/50">Gemini Calls: {up.geminiCallsCount || 0}</span>
+                              <span className="text-[10px] text-base-content/50">Time: {(up.processingTimeMs / 1000).toFixed(1)}s</span>
+                            </>
                           ) : (
                             <span className="text-[10px] opacity-40 italic">N/A</span>
                           )}
@@ -871,7 +879,7 @@ export default function StatementsPage() {
               </thead>
               <tbody className="divide-y divide-primary/5">
                 {audits.length === 0 ? (
-                   <tr>
+                  <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-base-content/60">
                       <CheckCircle2 className="h-6 w-6 mx-auto mb-2 text-success opacity-80" />
                       Hooray! No pending discrepancies found.
@@ -899,10 +907,10 @@ export default function StatementsPage() {
                       </td>
                       <td className="px-6 py-4">
                         {audit.transaction && (
-                          <select 
+                          <select
                             className={`select select-sm select-bordered w-full font-medium ${audit.issueType === 'SUGGESTED_MATCH' ? 'select-primary bg-primary/5' : ''}`}
                             value={selectedReceiptId[audit.id] !== undefined ? selectedReceiptId[audit.id] : (audit.receipt ? audit.receipt.id.toString() : "")}
-                            onChange={(e) => setSelectedReceiptId({...selectedReceiptId, [audit.id]: e.target.value})}
+                            onChange={(e) => setSelectedReceiptId({ ...selectedReceiptId, [audit.id]: e.target.value })}
                           >
                             <option value="">Select a Receipt...</option>
                             {receipts.map(r => (
@@ -915,33 +923,33 @@ export default function StatementsPage() {
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
                         {audit.transaction && (
-                         <div className="flex flex-col gap-2">
-                          <button
-                           onClick={() => {
-                             setEditingTxn(audit.transaction!);
-                             setEditForm({
-                               amount: audit.transaction!.amount,
-                               vendor: audit.transaction!.vendor || "",
-                               txDate: audit.transaction!.txDate,
-                               description: audit.transaction!.description,
-                               type: audit.transaction!.type || "DEBIT"
-                             });
-                           }}
-                           className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-base-100 hover:bg-accent hover:text-accent-content h-8 px-3"
-                          >
-                            <Edit2 className="w-3 h-3 mr-1" /> Edit Extract
-                          </button>
-                          <button
-                           onClick={() => handleManuallyLink(audit.id, audit.transaction?.id, audit.receipt?.id)}
-                           className={`inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 ${audit.issueType === 'SUGGESTED_MATCH' ? 'bg-success text-primary-content hover:bg-emerald-600 shadow-sm shadow-emerald-500/20' : 'bg-primary text-primary-content hover:bg-primary/90'}`}
-                          >
-                            <Check className="w-3 h-3 mr-1" /> {audit.issueType === 'SUGGESTED_MATCH' ? 'Approve Match' : 'Manual Link'}
-                          </button>
-                         </div>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingTxn(audit.transaction!);
+                                setEditForm({
+                                  amount: audit.transaction!.amount,
+                                  vendor: audit.transaction!.vendor || "",
+                                  txDate: audit.transaction!.txDate,
+                                  description: audit.transaction!.description,
+                                  type: audit.transaction!.type || "DEBIT"
+                                });
+                              }}
+                              className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-base-100 hover:bg-accent hover:text-accent-content h-8 px-3"
+                            >
+                              <Edit2 className="w-3 h-3 mr-1" /> Edit Extract
+                            </button>
+                            <button
+                              onClick={() => handleManuallyLink(audit.id, audit.transaction?.id, audit.receipt?.id)}
+                              className={`inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 ${audit.issueType === 'SUGGESTED_MATCH' ? 'bg-success text-primary-content hover:bg-emerald-600 shadow-sm shadow-emerald-500/20' : 'bg-primary text-primary-content hover:bg-primary/90'}`}
+                            >
+                              <Check className="w-3 h-3 mr-1" /> {audit.issueType === 'SUGGESTED_MATCH' ? 'Approve Match' : 'Manual Link'}
+                            </button>
+                          </div>
                         )}
                         <button
-                         onClick={() => handleIgnoreAudit(audit.id)}
-                         className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-base-100 hover:bg-accent hover:text-accent-content h-8 px-3 mt-2"
+                          onClick={() => handleIgnoreAudit(audit.id)}
+                          className="inline-flex items-center justify-center rounded-md text-xs font-medium border border-input bg-base-100 hover:bg-accent hover:text-accent-content h-8 px-3 mt-2"
                         >
                           <X className="w-3 h-3 mr-1" /> Mark Done
                         </button>
@@ -956,87 +964,87 @@ export default function StatementsPage() {
       </div>
 
       {editingTxn &&
- (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-base-200 w-full max-w-md rounded-xl shadow-2xl overflow-hidden border">
-            <div className="p-6">
-              <h3 className="text-lg font-bold mb-4">Edit Transaction Extraction</h3>
-              <p className="text-sm text-base-content/60 mb-4">If the AI extracted the wrong amount, vendor, or date, you can fix it here before linking.</p>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-base-content/60 mb-1">Date</label>
-                  <input
-                    type="date"
-                    className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
-                    value={editForm.txDate}
-                    onChange={(e) => setEditForm({...editForm, txDate: e.target.value})}
-                  />
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-base-content/60 mb-1">Type</label>
-                    <select
-                      className="w-full h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
-                      value={editForm.type}
-                      onChange={(e) => setEditForm({...editForm, type: e.target.value})}
-                    >
-                      <option value="DEBIT">Debit (Withdrawal)</option>
-                      <option value="CREDIT">Credit (Deposit)</option>
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-base-content/60 mb-1">Amount</label>
+        (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-base-200 w-full max-w-md rounded-xl shadow-2xl overflow-hidden border">
+              <div className="p-6">
+                <h3 className="text-lg font-bold mb-4">Edit Transaction Extraction</h3>
+                <p className="text-sm text-base-content/60 mb-4">If the AI extracted the wrong amount, vendor, or date, you can fix it here before linking.</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-base-content/60 mb-1">Date</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="date"
                       className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
-                      value={editForm.amount}
-                      onChange={(e) => setEditForm({...editForm, amount: parseFloat(e.target.value)})}
+                      value={editForm.txDate}
+                      onChange={(e) => setEditForm({ ...editForm, txDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-base-content/60 mb-1">Type</label>
+                      <select
+                        className="w-full h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
+                        value={editForm.type}
+                        onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                      >
+                        <option value="DEBIT">Debit (Withdrawal)</option>
+                        <option value="CREDIT">Credit (Deposit)</option>
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-base-content/60 mb-1">Amount</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-base-content/60 mb-1">Vendor/Counterparty</label>
+                    <input
+                      type="text"
+                      className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
+                      value={editForm.vendor}
+                      onChange={(e) => setEditForm({ ...editForm, vendor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-base-content/60 mb-1">Description</label>
+                    <textarea
+                      className="w-full flex rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
+                      rows={2}
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-base-content/60 mb-1">Vendor/Counterparty</label>
-                  <input
-                    type="text"
-                    className="w-full flex h-10 rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
-                    value={editForm.vendor}
-                    onChange={(e) => setEditForm({...editForm, vendor: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-base-content/60 mb-1">Description</label>
-                  <textarea
-                    className="w-full flex rounded-md border border-input bg-base-100 px-3 py-2 text-sm shadow-sm"
-                    rows={2}
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                  />
-                </div>
-              </div>
 
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={() => setEditingTxn(null)}
-                  className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-base-300"
-                  disabled={isSavingTxn}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveTransaction}
-                  className="px-4 py-2 bg-primary text-primary-content rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90"
-                  disabled={isSavingTxn}
-                >
-                  {isSavingTxn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Changes
-                </button>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={() => setEditingTxn(null)}
+                    className="px-4 py-2 border rounded-md text-sm font-medium hover:bg-base-300"
+                    disabled={isSavingTxn}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveTransaction}
+                    className="px-4 py-2 bg-primary text-primary-content rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90"
+                    disabled={isSavingTxn}
+                  >
+                    {isSavingTxn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Changes
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

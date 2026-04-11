@@ -24,6 +24,12 @@ interface AuditTrail {
     amount: number;
     date: string;
   } | null;
+  amountScore: number;
+  dateScore: number;
+  vendorScore: number;
+  amountReasoning: string;
+  dateReasoning: string;
+  vendorReasoning: string;
 }
 
 const ISSUE_TYPES = [
@@ -34,24 +40,62 @@ const ISSUE_TYPES = [
   { value: "DATE_MISMATCH", label: "Date Mismatch" },
 ];
 
-function ScoreBadge({ score }: { score: number | null }) {
+function ScoreBadge({ score, amountScore, dateScore, vendorScore, amountReasoning, dateReasoning, vendorReasoning }: { score: number | null, amountScore?: number, dateScore?: number, vendorScore?: number, amountReasoning?: string, dateReasoning?: string, vendorReasoning?: string }) {
   if (score === null || score === undefined) return <span className="text-base-content/60 text-xs">—</span>;
   const pct = Math.round(score);
   const color = pct >= 80 ? "badge-success"
-              : pct >= 50 ? "badge-warning"
-              : "badge-ghost";
+    : pct >= 50 ? "badge-warning"
+      : "badge-ghost";
   return (
-    <span className={`badge badge-sm font-bold ${color}`}>
-      {pct}/100
-    </span>
+    <div className="group relative">
+      <span className={`badge badge-sm font-bold ${color}`}>
+        {pct}/100
+      </span>
+
+      {/* Detailed Breakdown Tooltip */}
+      {(amountScore !== undefined || dateScore !== undefined || vendorScore !== undefined) && (
+        <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-4 bg-base-100 border border-base-content/10 shadow-xl rounded-2xl text-left">
+          <div className="text-[10px] font-black uppercase tracking-widest text-base-content/40 mb-3 border-b border-base-content/5 pb-2">Confidence Breakdown</div>
+          <div className="space-y-3">
+            {amountScore !== undefined && amountScore !== null && (
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <div className="text-[11px] font-bold">Amount Score</div>
+                  <div className="text-[9px] text-base-content/60 leading-tight mt-0.5">{amountReasoning || "Analyzed"}</div>
+                </div>
+                <div className={`text-xs font-black font-mono whitespace-nowrap ${amountScore >= 40 ? 'text-success' : amountScore > 0 ? 'text-warning' : 'text-error'}`}>{amountScore}/50</div>
+              </div>
+            )}
+            {dateScore !== undefined && dateScore !== null && (
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <div className="text-[11px] font-bold">Date Score</div>
+                  <div className="text-[9px] text-base-content/60 leading-tight mt-0.5">{dateReasoning || "Analyzed"}</div>
+                </div>
+                <div className={`text-xs font-black font-mono whitespace-nowrap ${dateScore >= 20 ? 'text-success' : dateScore > 0 ? 'text-warning' : 'text-error'}`}>{dateScore}/30</div>
+              </div>
+            )}
+            {vendorScore !== undefined && vendorScore !== null && (
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <div className="text-[11px] font-bold">Vendor Score</div>
+                  <div className="text-[9px] text-base-content/60 leading-tight mt-0.5">{vendorReasoning || "Analyzed"}</div>
+                </div>
+                <div className={`text-xs font-black font-mono whitespace-nowrap ${vendorScore >= 15 ? 'text-success' : vendorScore > 0 ? 'text-warning' : 'text-error'}`}>{vendorScore.toFixed(0)}/20</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 function MatchTypeBadge({ type }: { type: string | null }) {
   if (!type) return null;
   const color = type === "EXACT" ? "badge-success"
-              : type === "FUZZY" ? "badge-warning"
-              : "badge-ghost";
+    : type === "FUZZY" ? "badge-warning"
+      : "badge-ghost";
   return (
     <span className={`badge badge-sm font-bold badge-outline ${color}`}>
       {type}
@@ -81,9 +125,9 @@ export default function ReconciliationPage() {
       const statsRes = await apiFetch("/reconciliation/audit-trail/statistics");
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setStats({ 
-          unresolved: statsData.unresolvedCount, 
-          resolved: statsData.resolved 
+        setStats({
+          unresolved: statsData.unresolvedCount,
+          resolved: statsData.resolved
         });
       }
     } catch (error) {
@@ -297,7 +341,7 @@ export default function ReconciliationPage() {
                     </td>
                     <td className="px-8 py-6 whitespace-nowrap text-center">
                       <div className="flex flex-col items-center gap-2">
-                        <ScoreBadge score={audit.similarityScore} />
+                        <ScoreBadge score={audit.similarityScore} amountScore={audit.amountScore} dateScore={audit.dateScore} vendorScore={audit.vendorScore} amountReasoning={audit.amountReasoning} dateReasoning={audit.dateReasoning} vendorReasoning={audit.vendorReasoning} />
                         <MatchTypeBadge type={audit.matchType} />
                       </div>
                     </td>

@@ -3,10 +3,9 @@ package com.finsight.backend.service;
 import com.finsight.backend.dto.BackupData;
 import com.finsight.backend.entity.*;
 import com.finsight.backend.repository.*;
+import com.finsight.backend.repository.survey.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class DataManagementService {
@@ -18,6 +17,17 @@ public class DataManagementService {
     private final AuditTrailRepository auditTrailRepository;
     private final ForensicAnomalyRepository forensicAnomalyRepository;
     private final AppConfigRepository appConfigRepository;
+    private final ReceiptSyncRunRepository receiptSyncRunRepository;
+    private final VendorAliasRepository vendorAliasRepository;
+    private final ReconciliationRunRepository reconciliationRunRepository;
+    private final CategoryKeywordMappingRepository categoryKeywordMappingRepository;
+    private final StatementUploadRepository statementUploadRepository;
+    private final VendorDictionaryRepository vendorDictionaryRepository;
+    private final SurveyRepository surveyRepository;
+    private final SurveyInsightRepository surveyInsightRepository;
+    private final SurveyActionItemRepository surveyActionItemRepository;
+    private final SurveyResponseRepository surveyResponseRepository;
+    private final ParserPatternRepository parserPatternRepository;
 
     public DataManagementService(
             ReceiptRepository receiptRepository,
@@ -26,7 +36,18 @@ public class DataManagementService {
             CategoryRepository categoryRepository,
             AuditTrailRepository auditTrailRepository,
             ForensicAnomalyRepository forensicAnomalyRepository,
-            AppConfigRepository appConfigRepository) {
+            AppConfigRepository appConfigRepository,
+            ReceiptSyncRunRepository receiptSyncRunRepository,
+            VendorAliasRepository vendorAliasRepository,
+            ReconciliationRunRepository reconciliationRunRepository,
+            CategoryKeywordMappingRepository categoryKeywordMappingRepository,
+            StatementUploadRepository statementUploadRepository,
+            VendorDictionaryRepository vendorDictionaryRepository,
+            SurveyRepository surveyRepository,
+            SurveyInsightRepository surveyInsightRepository,
+            SurveyActionItemRepository surveyActionItemRepository,
+            SurveyResponseRepository surveyResponseRepository,
+            ParserPatternRepository parserPatternRepository) {
         this.receiptRepository = receiptRepository;
         this.bankTransactionRepository = bankTransactionRepository;
         this.vendorRepository = vendorRepository;
@@ -34,6 +55,17 @@ public class DataManagementService {
         this.auditTrailRepository = auditTrailRepository;
         this.forensicAnomalyRepository = forensicAnomalyRepository;
         this.appConfigRepository = appConfigRepository;
+        this.receiptSyncRunRepository = receiptSyncRunRepository;
+        this.vendorAliasRepository = vendorAliasRepository;
+        this.reconciliationRunRepository = reconciliationRunRepository;
+        this.categoryKeywordMappingRepository = categoryKeywordMappingRepository;
+        this.statementUploadRepository = statementUploadRepository;
+        this.vendorDictionaryRepository = vendorDictionaryRepository;
+        this.surveyRepository = surveyRepository;
+        this.surveyInsightRepository = surveyInsightRepository;
+        this.surveyActionItemRepository = surveyActionItemRepository;
+        this.surveyResponseRepository = surveyResponseRepository;
+        this.parserPatternRepository = parserPatternRepository;
     }
 
     public BackupData exportData() {
@@ -50,15 +82,10 @@ public class DataManagementService {
 
     @Transactional
     public void importData(BackupData data) {
-        // 1. Clear existing data in correct order (AuditTrail/Transactions have FKs)
-        auditTrailRepository.deleteAllInBatch();
-        bankTransactionRepository.deleteAllInBatch();
-        receiptRepository.deleteAllInBatch();
-        vendorRepository.deleteAllInBatch();
-        forensicAnomalyRepository.deleteAllInBatch();
-        categoryRepository.deleteAllInBatch();
-        // We might want to keep the config or overwrite it? 
-        // User asked for "full data backup", so overwrite.
+        // 1. Clear existing data in correct order
+        clearTransactionalAndLearnedData();
+        
+        // For import, we do overwrite config as it's a full restore
         appConfigRepository.deleteAllInBatch();
 
         // 2. Restore data
@@ -73,12 +100,41 @@ public class DataManagementService {
 
     @Transactional
     public void resetDatabase() {
+        clearTransactionalAndLearnedData();
+        // appConfigRepository.deleteAllInBatch(); // PRESERVED: Do not clear system settings
+    }
+
+    /**
+     * Helper to clear all transactional, run, survey, and learned data tables.
+     * Preserves AppConfig.
+     */
+    private void clearTransactionalAndLearnedData() {
+        // Clear Survey dependencies first
+        surveyActionItemRepository.deleteAllInBatch();
+        surveyInsightRepository.deleteAllInBatch();
+        surveyResponseRepository.deleteAllInBatch();
+        surveyRepository.deleteAllInBatch();
+
+        // Clear Audit and Runs
         auditTrailRepository.deleteAllInBatch();
+        reconciliationRunRepository.deleteAllInBatch();
+        receiptSyncRunRepository.deleteAllInBatch();
+        statementUploadRepository.deleteAllInBatch();
+
+        // Clear Transactional and Learned data
         bankTransactionRepository.deleteAllInBatch();
         receiptRepository.deleteAllInBatch();
-        vendorRepository.deleteAllInBatch();
         forensicAnomalyRepository.deleteAllInBatch();
+        
+        // Clear Knowledge Base
+        vendorAliasRepository.deleteAllInBatch();
+        vendorDictionaryRepository.deleteAllInBatch();
+        categoryKeywordMappingRepository.deleteAllInBatch();
+        parserPatternRepository.deleteAllInBatch();
+        
+        // Base data
+        vendorRepository.deleteAllInBatch();
         categoryRepository.deleteAllInBatch();
-        appConfigRepository.deleteAllInBatch();
     }
 }
+

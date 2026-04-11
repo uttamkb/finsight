@@ -7,6 +7,8 @@ import com.finsight.backend.repository.AuditTrailRepository;
 import com.finsight.backend.repository.BankTransactionRepository;
 import com.finsight.backend.repository.ReceiptRepository;
 import com.finsight.backend.service.impl.ReconciliationServiceImpl;
+import com.finsight.backend.service.reconciliation.ConfidenceCalculator;
+import com.finsight.backend.service.reconciliation.ConfidenceCalculator.MatchScoreResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -23,10 +25,16 @@ import static org.mockito.Mockito.*;
 
 class ReconciliationServiceTest {
 
-    @Mock private BankTransactionRepository bankTransactionRepository;
-    @Mock private ReceiptRepository receiptRepository;
-    @Mock private AuditTrailRepository auditTrailRepository;
-    @Mock private com.finsight.backend.repository.ReconciliationRunRepository reconciliationRunRepository;
+    @Mock
+    private BankTransactionRepository bankTransactionRepository;
+    @Mock
+    private ReceiptRepository receiptRepository;
+    @Mock
+    private AuditTrailRepository auditTrailRepository;
+    @Mock
+    private com.finsight.backend.repository.ReconciliationRunRepository reconciliationRunRepository;
+    @Mock
+    private ConfidenceCalculator confidenceCalculator;
 
     @InjectMocks
     private ReconciliationServiceImpl reconciliationService;
@@ -36,6 +44,22 @@ class ReconciliationServiceTest {
         MockitoAnnotations.openMocks(this);
         // Mock save to return the object for ReconciliationRun
         lenient().when(reconciliationRunRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lenient().when(confidenceCalculator.computeScore(any(BankTransaction.class), any(Receipt.class)))
+                .thenAnswer(invocation -> {
+                    BankTransaction t = invocation.getArgument(0);
+                    Receipt r = invocation.getArgument(1);
+
+                    double score = 0;
+                    if (t.getAmount().compareTo(r.getAmount()) == 0)
+                        score += 50;
+                    if (t.getTxDate().equals(r.getDate()))
+                        score += 30;
+                    if (t.getDescription() != null && r.getVendor() != null && t.getDescription().equals(r.getVendor()))
+                        score += 20;
+
+                    return new MatchScoreResult(score, null, null, null);
+                });
     }
 
     @Test
@@ -87,9 +111,11 @@ class ReconciliationServiceTest {
         receipt.setId(100L);
         receipt.setReconciliationStatus(ReconciliationStatus.PENDING);
 
-        when(reconciliationRunRepository.findFirstByTenantIdAndAccountTypeAndStatus(anyString(), anyString(), eq("RUNNING")))
+        when(reconciliationRunRepository.findFirstByTenantIdAndAccountTypeAndStatus(anyString(), anyString(),
+                eq("RUNNING")))
                 .thenReturn(Optional.empty());
-        when(bankTransactionRepository.findByTenantIdAndAccountTypeAndReconciliationStatusIn(anyString(), any(), anyList()))
+        when(bankTransactionRepository.findByTenantIdAndAccountTypeAndReconciliationStatusIn(anyString(), any(),
+                anyList()))
                 .thenReturn(Arrays.asList(txn));
         when(receiptRepository.findCandidatesByAmountRange(anyString(), any(), any(), anyList()))
                 .thenReturn(Arrays.asList(receipt));
@@ -100,11 +126,10 @@ class ReconciliationServiceTest {
         assertEquals(receipt, txn.getReceipt());
         assertEquals(100.0, txn.getMatchScore());
         verify(bankTransactionRepository).save(txn);
-        
+
         // Verify run record update
-        verify(reconciliationRunRepository, atLeastOnce()).save(argThat(run -> 
-            "COMPLETED".equals(run.getStatus()) && run.getMatchedCount() == 1
-        ));
+        verify(reconciliationRunRepository, atLeastOnce())
+                .save(argThat(run -> "COMPLETED".equals(run.getStatus()) && run.getMatchedCount() == 1));
     }
 
     @Test
@@ -112,13 +137,13 @@ class ReconciliationServiceTest {
         String tenantId = "tenant1";
         com.finsight.backend.entity.ReconciliationRun activeRun = new com.finsight.backend.entity.ReconciliationRun();
         activeRun.setStatus("RUNNING");
-        
-        when(reconciliationRunRepository.findFirstByTenantIdAndAccountTypeAndStatus(anyString(), anyString(), eq("RUNNING")))
+
+        when(reconciliationRunRepository.findFirstByTenantIdAndAccountTypeAndStatus(anyString(), anyString(),
+                eq("RUNNING")))
                 .thenReturn(Optional.of(activeRun));
 
-        assertThrows(IllegalStateException.class, () -> 
-            reconciliationService.runReconciliation(tenantId, "MAINTENANCE")
-        );
+        assertThrows(IllegalStateException.class,
+                () -> reconciliationService.runReconciliation(tenantId, "MAINTENANCE"));
     }
 
     private BankTransaction buildTxn(BigDecimal amount, String desc, LocalDate date) {

@@ -1,5 +1,5 @@
 {
-  "tenantId" : "tenant1",
-  "vendors" : [ "Export Vendor" ],
-  "updatedAt" : "2026-03-28T16:03:26.153188"
+  "tenantId" : "local_tenant",
+  "vendors" : [ "M.K FABRICATION", "METRO ELECTRIC CO. & HARDWARE", "R.K. DISTRIBUTORS", "SHREE DEV ELECTRICALS AND HARDWARE", "NEW GAJANAND SWEETS", "TANUSH PROVISIONAL STORE", "OM SHAKTHI ENTERPRISES", "S.V. SERVICES", "Tanush Provisional Store", "SRI KABALAMMA PRASANNA", "RPB Solutions", "SRI LAKSHMI VENKATESHWARA TRADERS", "Metro Electric Co. & Hardware" ],
+  "updatedAt" : "2026-04-09T17:51:01.514013"
 }

@@ -498,11 +498,12 @@ public class BankStatementService {
             }
             
             transactionPatternEnricher.enrichIfMatches(txn);
-            
-            // Populate/Update Vendor statistics for the "Vendor Intel" page (Only for Spending/Debit)
-            if (txn.getType() == BankTransaction.TransactionType.DEBIT) {
-                vendorManager.updateVendorStats(tenantId, txn.getVendor(), txn.getAmount(), txn.getTxDate());
-            }
+
+            // NOTE: Vendor stats are intentionally NOT updated here.
+            // Raw bank statement descriptions are noisy (e.g. "UPI/REF/SWIGGY INDIA PVT LTD").
+            // Receipts carry clean, OCR-extracted vendor names (e.g. "Swiggy").
+            // Vendor stats are updated at reconciliation time using the receipt's canonical vendor name.
+            // For unmatched DEBITs (no receipt), the reconciliation service also handles the fallback.
 
             toSave.add(txn);
         }

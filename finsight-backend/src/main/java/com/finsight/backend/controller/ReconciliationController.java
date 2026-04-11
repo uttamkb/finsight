@@ -6,6 +6,7 @@ import com.finsight.backend.service.ReconciliationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -22,7 +23,7 @@ public class ReconciliationController {
     private final ReconciliationRunRepository reconciliationRunRepository;
 
     public ReconciliationController(ReconciliationService reconciliationService,
-                                     ReconciliationRunRepository reconciliationRunRepository) {
+            ReconciliationRunRepository reconciliationRunRepository) {
         this.reconciliationService = reconciliationService;
         this.reconciliationRunRepository = reconciliationRunRepository;
     }
@@ -82,6 +83,18 @@ public class ReconciliationController {
             @RequestParam Long bankTransactionId,
             @RequestParam Long receiptId) {
         reconciliationService.manuallyLink(bankTransactionId, receiptId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/link")
+    @Operation(summary = "Link transaction and receipt (frontend compatible)", description = "Manually links a bank transaction with a specific receipt using JSON body.")
+    public ResponseEntity<Void> linkTransaction(@RequestBody Map<String, Long> request) {
+        Long transactionId = request.get("transactionId");
+        Long receiptId = request.get("receiptId");
+        if (transactionId == null || receiptId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        reconciliationService.manuallyLink(transactionId, receiptId);
         return ResponseEntity.ok().build();
     }
 

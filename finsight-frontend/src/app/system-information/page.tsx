@@ -35,11 +35,10 @@ export default function SystemInformationPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap shadow-sm border ${
-              activeTab === tab.id
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all whitespace-nowrap shadow-sm border ${activeTab === tab.id
                 ? "bg-primary text-primary-content border-primary shadow-xl shadow-primary/20 scale-105"
                 : "bg-base-300/50 border-transparent text-base-content/30 hover:text-base-content hover:bg-base-300 transition-colors"
-            }`}
+              }`}
           >
             <tab.icon className="h-4 w-4" />
             {tab.label}
@@ -89,7 +88,7 @@ export default function SystemInformationPage() {
                 <Server className="h-8 w-8 text-primary shadow-primary" />
                 Operational Topology
               </h2>
-              
+
               <div className="flex flex-col md:flex-row items-stretch justify-center gap-8 py-12 relative">
                 <div className="glass-panel w-full md:w-1/4 p-8 rounded-[2rem] border border-primary/20 bg-primary/5 text-center relative z-10 transition-all hover:glow-primary hover:scale-105">
                   <Smartphone className="h-12 w-12 text-primary mx-auto mb-6 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
@@ -142,211 +141,223 @@ export default function SystemInformationPage() {
 
         {/* ... Include remaining tabs ... */}
         {activeTab === "schema" && (
-           <div className="grid gap-10 animate-fade-in">
-             <div className="glass-panel p-10 rounded-[3rem] shadow-2xl relative border-primary/5">
-                <h2 className="text-3xl font-black mb-10 flex items-center gap-4 tracking-tighter uppercase">
-                  <Database className="h-8 w-8 text-primary shadow-primary" />
-                  Relational Synapse Schema
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  
-                  <div className="glass-panel rounded-3xl overflow-hidden border-primary/20 hover:scale-[1.02] transition-transform">
-                    <div className="bg-primary/20 p-5 border-b border-primary/20 flex items-center justify-between">
-                      <span className="font-black font-mono text-xs uppercase tracking-widest text-primary">surveys & intel</span>
-                      <span className="text-[9px] font-black text-white bg-primary px-2 py-1 rounded-lg uppercase tracking-wider">Turso Cloud</span>
-                    </div>
-                    <div className="p-6 space-y-3 text-[10px] font-mono font-bold text-base-content/50 uppercase tracking-widest">
-                      <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>survey_id</span> <span className="text-primary">UID_STRING</span></div>
-                      <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>responses</span> <span className="text-info">BLOB_JSON</span></div>
-                      <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>sentiment</span> <span className="text-success">FLOAT_32</span></div>
-                    </div>
+          <div className="grid gap-10 animate-fade-in">
+            <div className="glass-panel p-10 rounded-[3rem] shadow-2xl relative border-primary/5">
+              <h2 className="text-3xl font-black mb-10 flex items-center gap-4 tracking-tighter uppercase">
+                <Database className="h-8 w-8 text-primary shadow-primary" />
+                Relational Synapse Schema
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                <div className="glass-panel rounded-3xl overflow-hidden border-primary/20 hover:scale-[1.02] transition-transform">
+                  <div className="bg-primary/20 p-5 border-b border-primary/20 flex items-center justify-between">
+                    <span className="font-black font-mono text-xs uppercase tracking-widest text-primary">surveys & intel</span>
+                    <span className="text-[9px] font-black text-white bg-primary px-2 py-1 rounded-lg uppercase tracking-wider">Turso Cloud</span>
                   </div>
-                  
-                  {[
-                    { name: 'receipts', type: 'Primary Data', schema: [
+                  <div className="p-6 space-y-3 text-[10px] font-mono font-bold text-base-content/50 uppercase tracking-widest">
+                    <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>survey_id</span> <span className="text-primary">UID_STRING</span></div>
+                    <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>responses</span> <span className="text-info">BLOB_JSON</span></div>
+                    <div className="flex justify-between items-center bg-base-100/30 p-2 rounded-lg"><span>sentiment</span> <span className="text-success">FLOAT_32</span></div>
+                  </div>
+                </div>
+
+                {[
+                  {
+                    name: 'receipts', type: 'Primary Data', schema: [
                       ['tenant_id', 'TEXT NOT NULL'],
                       ['drive_id', 'TEXT UNIQUE'],
                       ['vendor', 'TEXT INDEXED'],
                       ['amount', 'DECIMAL(15,2)'],
                       ['hash', 'SHA256_HASH'],
-                    ]},
-                    { name: 'bank_txns', type: 'Financial Data', schema: [
+                    ]
+                  },
+                  {
+                    name: 'bank_txns', type: 'Financial Data', schema: [
                       ['tx_date', 'DATE NOT NULL'],
                       ['desc', 'TEXT INDEXED'],
                       ['amount', 'DECIMAL(15,2)'],
-                      ['reconciled', 'BOOL_INT'],
+                      ['reconciliation_status', 'ENUM_MATCHED'],
+                      ['match_score', 'FLOAT (0‑100)'],
+                      ['match_type', 'TEXT'],
                       ['receipt_id', 'FK_INT'],
-                    ]},
-                    { name: 'audit_trail', type: 'Forensic Logic', schema: [
+                    ]
+                  },
+                  {
+                    name: 'audit_trail', type: 'Forensic Logic', schema: [
                       ['txn_id', 'FK_INT INDEXED'],
                       ['issue', 'ENUM_MISMATCH'],
-                      ['score', 'FLOAT (60:30:10)'],
+                      ['score', 'FLOAT (0‑100)'],
                       ['resolved', 'BOOL_INT'],
-                    ]},
-                    { name: 'anomalies', type: 'Risk Data', schema: [
+                    ]
+                  },
+                  {
+                    name: 'anomalies', type: 'Risk Data', schema: [
                       ['reason', 'AI_DEDUCTION'],
                       ['amount', 'DECIMAL(15,2)'],
                       ['vector', 'SENSOR_TAG'],
-                    ]},
-                    { name: 'app_config', type: 'System Core', schema: [
+                    ]
+                  },
+                  {
+                    name: 'app_config', type: 'System Core', schema: [
                       ['service_acc', 'SECURE_TEXT'],
                       ['gemini_key', 'SECURE_TEXT'],
                       ['synced_at', 'EPOCH_MS'],
-                    ]}
-                  ].map((table) => (
-                    <div key={table.name} className="glass-panel rounded-3xl overflow-hidden border-base-content/5 hover:scale-[1.02] transition-transform">
-                      <div className="bg-base-300/40 p-5 border-b border-base-content/5 flex items-center justify-between">
-                        <span className="font-black font-mono text-xs uppercase tracking-widest text-base-content/80">{table.name}</span>
-                        <span className="text-[9px] font-black text-base-content/40 bg-base-100/50 px-2 py-1 rounded-lg uppercase tracking-wider">{table.type}</span>
-                      </div>
-                      <div className="p-6 space-y-2.5 text-[10px] font-mono font-bold text-base-content/30 uppercase tracking-widest">
-                        {table.schema.map(([col, typ]) => (
-                          <div key={col} className="flex justify-between items-center group/row">
-                            <span className="group-hover/row:text-primary transition-colors">{col}</span>
-                            <span className="opacity-40">{typ}</span>
-                          </div>
-                        ))}
-                      </div>
+                    ]
+                  }
+                ].map((table) => (
+                  <div key={table.name} className="glass-panel rounded-3xl overflow-hidden border-base-content/5 hover:scale-[1.02] transition-transform">
+                    <div className="bg-base-300/40 p-5 border-b border-base-content/5 flex items-center justify-between">
+                      <span className="font-black font-mono text-xs uppercase tracking-widest text-base-content/80">{table.name}</span>
+                      <span className="text-[9px] font-black text-base-content/40 bg-base-100/50 px-2 py-1 rounded-lg uppercase tracking-wider">{table.type}</span>
                     </div>
-                  ))}
-                </div>
-             </div>
-           </div>
+                    <div className="p-6 space-y-2.5 text-[10px] font-mono font-bold text-base-content/30 uppercase tracking-widest">
+                      {table.schema.map(([col, typ]) => (
+                        <div key={col} className="flex justify-between items-center group/row">
+                          <span className="group-hover/row:text-primary transition-colors">{col}</span>
+                          <span className="opacity-40">{typ}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "tech-stack" && (
-           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
-                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-primary" />
-                  Engineering Technology Stack
-                </h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="font-semibold text-lg border-b pb-2 mb-4 flex items-center gap-2">
-                       <LayoutDashboard className="h-4 w-4" /> Frontend (Web Client)
-                    </h3>
-                    <ul className="space-y-3">
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Framework</span> <span className="font-mono text-base-content/60">Next.js 16 (React 19)</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Language</span> <span className="font-mono text-base-content/60">TypeScript</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Styling</span> <span className="font-mono text-base-content/60">Tailwind CSS v4</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Icons & Visuals</span> <span className="font-mono text-base-content/60">Lucide, Recharts</span>
-                      </li>
-                    </ul>
-                  </div>
+          <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                Engineering Technology Stack
+              </h2>
 
-                  <div>
-                    <h3 className="font-semibold text-lg border-b pb-2 mb-4 flex items-center gap-2">
-                       <Cpu className="h-4 w-4" /> Backend API (Server)
-                    </h3>
-                    <ul className="space-y-3">
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Framework</span> <span className="font-mono text-base-content/60">Spring Boot 3.4.3</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Language</span> <span className="font-mono text-base-content/60">Java 21</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Build Tool</span> <span className="font-mono text-base-content/60">Maven</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Database Layer</span> <span className="font-mono text-base-content/60">Spring Data JPA, Hibernate</span>
-                      </li>
-                      <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
-                        <span className="font-medium">Embedded DB</span> <span className="font-mono text-base-content/60">SQLite / Turso (LibSQL)</span>
-                      </li>
-                    </ul>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="font-semibold text-lg border-b pb-2 mb-4 flex items-center gap-2">
+                    <LayoutDashboard className="h-4 w-4" /> Frontend (Web Client)
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Framework</span> <span className="font-mono text-base-content/60">Next.js 16 (React 19)</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Language</span> <span className="font-mono text-base-content/60">TypeScript</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Styling</span> <span className="font-mono text-base-content/60">Tailwind CSS v4</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Icons & Visuals</span> <span className="font-mono text-base-content/60">Lucide, Recharts</span>
+                    </li>
+                  </ul>
                 </div>
-             </div>
-           </div>
+
+                <div>
+                  <h3 className="font-semibold text-lg border-b pb-2 mb-4 flex items-center gap-2">
+                    <Cpu className="h-4 w-4" /> Backend API (Server)
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Framework</span> <span className="font-mono text-base-content/60">Spring Boot 3.4.3</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Language</span> <span className="font-mono text-base-content/60">Java 21</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Build Tool</span> <span className="font-mono text-base-content/60">Maven</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Database Layer</span> <span className="font-mono text-base-content/60">Spring Data JPA, Hibernate</span>
+                    </li>
+                    <li className="flex justify-between items-center border p-3 rounded-lg bg-base-100 text-sm">
+                      <span className="font-medium">Embedded DB</span> <span className="font-mono text-base-content/60">SQLite / Turso (LibSQL)</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "data-flow" && (
-           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Workflow className="h-5 w-5 text-primary" />
-                  Core Data Processing Pipeline
-                </h2>
-                <div className="space-y-6 pt-4">
-                  {[
-                    { step: "1", title: "Drive & Sheets Ingestion", desc: "DriveSyncService and GoogleSheetsSyncService poll Google Workspace for new expense receipts and resident survey responses." },
-                    { step: "2", title: "OCR & Hybrid Parsing", desc: "OcrService extracts receipt data. Bank statements follow a Hybrid Pipeline (Table Extraction -> Fallback -> Gemini) with Dynamic Column Detection." },
-                    { step: "3", title: "Gemini 3 & Resident Insights", desc: "Bank statement categorization and Resident sentiment generation. Gemini acts as an intelligent fallback for malformed table data." },
-                    { step: "4", title: "Financial Reconciliation", desc: "ReconciliationService uses a 60-30-10 scoring logic with tiered BigDecimal precision and SHA-256 deduplication." }
-                  ].map((pipe, i) => (
-                    <div key={i} className="flex gap-4 p-4 border rounded-xl bg-base-100 relative overflow-hidden group hover:border-primary/50 transition-colors">
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors"></div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold font-mono shadow-md">
-                        {pipe.step}
-                      </div>
-                      <div>
-                        <h3 className="font-bold mb-1 group-hover:text-primary transition-colors">{pipe.title}</h3>
-                        <p className="text-base-content/60 text-sm leading-relaxed">{pipe.desc}</p>
-                      </div>
+          <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Workflow className="h-5 w-5 text-primary" />
+                Core Data Processing Pipeline
+              </h2>
+              <div className="space-y-6 pt-4">
+                {[
+                  { step: "1", title: "Drive & Sheets Ingestion", desc: "DriveSyncService and GoogleSheetsSyncService poll Google Workspace for new expense receipts and resident survey responses." },
+                  { step: "2", title: "OCR & Hybrid Parsing", desc: "OcrService extracts receipt data. Bank statements follow a Hybrid Pipeline (Table Extraction -> Fallback -> Gemini) with Dynamic Column Detection." },
+                  { step: "3", title: "Gemini 3 & Resident Insights", desc: "Bank statement categorization and Resident sentiment generation. Gemini acts as an intelligent fallback for malformed table data." },
+                  { step: "4", title: "Multi‑Strategy Reconciliation Engine", desc: "ReconciliationEngine uses a modular matching pipeline with dedicated services for vendor normalization, amount matching (± tolerance), date proximity scoring, and confidence‑based classification. Dynamic vendor‑alias learning and category‑specific rules improve accuracy; audit trails track every match." }
+                ].map((pipe, i) => (
+                  <div key={i} className="flex gap-4 p-4 border rounded-xl bg-base-100 relative overflow-hidden group hover:border-primary/50 transition-colors">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors"></div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold font-mono shadow-md">
+                      {pipe.step}
                     </div>
-                  ))}
-                </div>
-             </div>
-           </div>
+                    <div>
+                      <h3 className="font-bold mb-1 group-hover:text-primary transition-colors">{pipe.title}</h3>
+                      <p className="text-base-content/60 text-sm leading-relaxed">{pipe.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "integrations" && (
-           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-2xl border bg-base-200 shadow-sm relative overflow-hidden">
-                  <div className="absolute right-0 top-0 w-32 h-32 bg-success/5 rounded-full blur-3xl"></div>
-                  <HardDrive className="h-8 w-8 text-success mb-4 relative z-10" />
-                  <h3 className="text-lg font-bold mb-2">Google Drive API v3</h3>
-                  <p className="text-sm text-base-content/60 mb-4">Leveraged for a continuous ingestion pipeline. Features **Robust Regex Validation** for Service Account JSONs to handle varied formatting and ensure configuration reliability.</p>
-                  <div className="text-xs font-mono bg-base-300 p-2 rounded">com.google.apis:google-api-services-drive</div>
-                </div>
+          <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-2xl border bg-base-200 shadow-sm relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-32 h-32 bg-success/5 rounded-full blur-3xl"></div>
+                <HardDrive className="h-8 w-8 text-success mb-4 relative z-10" />
+                <h3 className="text-lg font-bold mb-2">Google Drive API v3</h3>
+                <p className="text-sm text-base-content/60 mb-4">Leveraged for a continuous ingestion pipeline. Features **Robust Regex Validation** for Service Account JSONs to handle varied formatting and ensure configuration reliability.</p>
+                <div className="text-xs font-mono bg-base-300 p-2 rounded">com.google.apis:google-api-services-drive</div>
+              </div>
 
-                <div className="p-6 rounded-2xl border bg-base-200 shadow-sm relative overflow-hidden">
-                  <div className="absolute right-0 top-0 w-32 h-32 bg-info/5 rounded-full blur-3xl"></div>
-                  <Code2 className="h-8 w-8 text-info mb-4 relative z-10" />
-                   <h3 className="text-lg font-bold mb-2">Google Gemini 3 Series</h3>
-                  <p className="text-sm text-base-content/60 mb-4">Master categorization engine and anomaly detection. Acts as a high-confidence fallback in the Bank Statement Hybrid Parser when table extraction yield is low (&lt; 80%).</p>
-                  <div className="text-xs font-mono bg-base-300 p-2 rounded">API Models: gemini-3-flash-preview, gemini-3.1-pro-preview</div>
-                </div>
-             </div>
-           </div>
+              <div className="p-6 rounded-2xl border bg-base-200 shadow-sm relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-32 h-32 bg-info/5 rounded-full blur-3xl"></div>
+                <Code2 className="h-8 w-8 text-info mb-4 relative z-10" />
+                <h3 className="text-lg font-bold mb-2">Google Gemini 3 Series</h3>
+                <p className="text-sm text-base-content/60 mb-4">Master categorization engine and anomaly detection. Acts as a high-confidence fallback in the Bank Statement Hybrid Parser when table extraction yield is low (&lt; 80%).</p>
+                <div className="text-xs font-mono bg-base-300 p-2 rounded">API Models: gemini-3-flash-preview, gemini-3.1-pro-preview</div>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "training" && (
           <div className="grid gap-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="p-6 rounded-2xl border bg-base-200 shadow-sm">
-               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                 <BrainCircuit className="h-5 w-5 text-primary" />
-                 OCR Training & Fine-tuning
-               </h2>
-               <p className="text-base-content/60 mb-6">
-                 FinSight allows you to improve the local OCR model's accuracy by training it on your specific receipt patterns. 
-                 This "Human-in-the-loop" system converts your manual corrections into training data.
-               </p>
-               
-               <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl p-10 text-center">
-                  <Cpu className="h-12 w-12 text-primary/50 mx-auto mb-4" />
-                  <h3 className="text-lg font-bold">Launch Training Center</h3>
-                  <p className="text-sm text-base-content/60 mb-6 max-w-md mx-auto">
-                    Manage harvested golden samples, prepare datasets, and monitor the fine-tuning pipeline.
-                  </p>
-                  <a 
-                    href="/system-information/training"
-                    className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-primary-content rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
-                  >
-                    Go to Training Dashboard <ChevronRight className="h-4 w-4" />
-                  </a>
-               </div>
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <BrainCircuit className="h-5 w-5 text-primary" />
+                OCR Training & Fine-tuning
+              </h2>
+              <p className="text-base-content/60 mb-6">
+                FinSight allows you to improve the local OCR model's accuracy by training it on your specific receipt patterns.
+                This "Human-in-the-loop" system converts your manual corrections into training data.
+              </p>
+
+              <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl p-10 text-center">
+                <Cpu className="h-12 w-12 text-primary/50 mx-auto mb-4" />
+                <h3 className="text-lg font-bold">Launch Training Center</h3>
+                <p className="text-sm text-base-content/60 mb-6 max-w-md mx-auto">
+                  Manage harvested golden samples, prepare datasets, and monitor the fine-tuning pipeline.
+                </p>
+                <a
+                  href="/system-information/training"
+                  className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 text-primary-content rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  Go to Training Dashboard <ChevronRight className="h-4 w-4" />
+                </a>
+              </div>
             </div>
           </div>
         )}

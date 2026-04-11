@@ -35,8 +35,24 @@ public class VendorService {
                 .toList();
     }
 
+    /**
+     * Returns category-level spending for the Resource Distribution chart.
+     *
+     * Strategy (Bank Statements = Anchor of Truth):
+     * - If bank statements have been uploaded → use bank_transactions as the authoritative source.
+     * - If NOT yet uploaded → fall back to receipts so users see useful data immediately
+     *   after their first Drive sync (receipts have cleaner categories from OCR + AI).
+     */
     public List<CategoryInsightDto> getSpendingByCategory(String tenantId) {
-        return bankTransactionRepository.getTopSpendingByCategory(tenantId, BankTransaction.AccountType.MAINTENANCE);
+        List<CategoryInsightDto> bankData = bankTransactionRepository
+                .getTopSpendingByCategory(tenantId, BankTransaction.AccountType.MAINTENANCE);
+
+        if (!bankData.isEmpty()) {
+            return bankData; // ← Bank statements are the anchor; use them when available
+        }
+
+        // Fallback: aggregate from receipts (receipts are the starting point for vendor data)
+        return receiptRepository.getSpendingByCategory(tenantId);
     }
 
     public java.util.Map<String, Long> getOcrModeStats() {
